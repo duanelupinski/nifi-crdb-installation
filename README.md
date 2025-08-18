@@ -10,11 +10,8 @@
 
 ## The Servers
 
-If you don't have a hosted or on-premise cloud solution you can spinup a sample NiFi cluster on your desktop using VMware or VirtualBox.  Instructions for installing VirtualBox on Windows 10 can be found [here](https://www.lifewire.com/install-ubuntu-linux-windows-10-steps-2202108).  Note that if you are running VirtualBox on Windows 10 you may need to disable Hyper-V by executing the command below from a Windows PowerShell.  For macOS / Apple Silicon you can download the dmg from https://www.virtualbox.org/wiki/Downloads and install the package.
+If you don't have a hosted or on-premise cloud solution you can spinup a sample NiFi cluster on your desktop using VMware or VirtualBox.  For macOS / Apple Silicon you can download the dmg from https://www.virtualbox.org/wiki/Downloads and install the package.
 
-```
-bcdedit /set hypervisorlaunchtype off
-```
 With VirtualBox I created three Ubuntu 64-bit VMs with the following configuration:
 - **Memory**: 4GB
 - **Virtual Hard Disk**: VDI
