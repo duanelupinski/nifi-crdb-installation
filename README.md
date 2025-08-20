@@ -10,16 +10,14 @@
 
 ## The Servers
 
-If you don't have a hosted or on-premise cloud solution you can spinup a sample NiFi cluster on your desktop using VMware or VirtualBox.  For macOS / Apple Silicon you can download the dmg from https://www.virtualbox.org/wiki/Downloads and install the package.
+If you don't have a hosted or on-premise cloud solution you can spinup a sample NiFi cluster on your desktop using VMware, VirtualBox or UTM.  For macOS / Apple Silicon you can download the UTM dmg from [here](https://mac.getutm.app/) and install the package.
 
-With VirtualBox I created three Ubuntu 64-bit VMs with the following configuration:
+With UTM I created three Ubuntu 64-bit VMs with the following configuration:
 - **Memory**: 4GB
 - **Virtual Hard Disk**: VDI
 - **Disk Size**: 100GB Dynamically Allocated
 - **Processor**: 2 CPUs
 - **Network**: Bridged Adapter
-
-I also set the Shared Clipboard and Drag’n’Drop values to Bidirectional under the General > Advanced settings to make it easier to work between the host and guest machines.
 
 For GCP we used three N2 General-purpose 32 vCPU and 64 GB machines.
 
@@ -55,7 +53,7 @@ NiFi requires separate file locations for their content and provenance repositor
 
 You can run a small demo with these repositories on the same disk that NiFi is installed on, but for a proper POC I reccommend attaching separate disks using a single primary partition with one of the following allocations.  For a production installation we would have different recommendations.  We only need to attach and partition the drives, the script will mount them to the appropriate location.
 
-For our local VirtualBox cluster we attached a separate 50GB disk to each VM and partitioned it into five separate storage areas as described below.
+For our local UTM cluster we attached a separate 50GB disk to each VM and partitioned it into five separate storage areas as described below.
 
 | Disk | Mount | Size |
 | ------------- | ------------- | ------------- |
