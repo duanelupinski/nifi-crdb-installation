@@ -213,3 +213,6 @@ vms/
 *.exe
 *-join-command
 *.log
+.terraform*
+*.tfstate*
+*.lock

@@ -1,0 +1,9 @@
+variable "name_prefix"       { type = string }
+variable "cpus"              { type = number }
+variable "memory"            { type = string }
+variable "disk"              { type = string }
+variable "image"             { type = string }
+variable "ssh_pubkey_path"   { type = string }
+variable "content_count"     { type = number }
+variable "provenance_count"  { type = number }
+variable "disk_mount_prefix" { type = string }
