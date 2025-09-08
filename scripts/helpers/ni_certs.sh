@@ -5,8 +5,6 @@
 ni::certs::ensure_cluster_tls() {
   local installer="$1"; shift
   local username="$1"; shift
-  local keystorePasswd="$1"; shift
-  local truststorePasswd="$1"; shift
 
   local nodes=("$@")
   local CERTS_DIR="./.private/nifi-certs"
@@ -84,7 +82,7 @@ EOF
       -in "${OUT}/${host}.crt" \
       -certfile "${CA_CRT}" \
       -out "${OUT}/keystore.p12" \
-      -passout "pass:${keystorePasswd}"
+      -passout "pass:${KEYSTORE_PASSWD}"
 
     # PKCS12 truststore containing only CA certificate
     if command -v keytool >/dev/null 2>&1; then
@@ -94,7 +92,7 @@ EOF
         -file "$CA_CRT" \
         -keystore "${OUT}/truststore.p12" \
         -storetype PKCS12 \
-        -storepass "${truststorePasswd}"
+        -storepass "${TRUSTSTORE_PASSWD}"
     else
       echo "ERROR: keytool (JDK) not found; required to create truststore.p12 cleanly." >&2
       return 2
@@ -126,7 +124,7 @@ EOF
       -in "${CLIENT_DIR}/${username}.crt" \
       -certfile "$CA_CRT" \
       -out "${CLIENT_DIR}/${username}.p12" \
-      -passout "pass:${keystorePasswd}"
+      -passout "pass:${KEYSTORE_PASSWD}"
   fi
 
   # --- push to nodes ---

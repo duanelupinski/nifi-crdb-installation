@@ -55,12 +55,13 @@ REMOTE
 }
 
 # Configure NiFi Registry web listeners (secure or http), hostnames only.
-# Usage: ni::registry::configure_web <ssh-remote> <secure:true|false> <registry_hostname>
+# Usage: ni::registry::configure_web <ssh-remote> <secure:true|false> <registry_hostname> [nifi_user]
 ni::registry::configure() {
-  local remote="$1" secure="$2" reg_host="$3" user="${4:-nifi}" ks_pwd="${5:-}" ts_pwd="${6:-}"
-  ni::ssh_sudo_stdin "$remote" "$secure" "$reg_host" "$user" "$ks_pwd" "$ts_pwd" <<'RSH'
+  local remote="$1" secure="$2" reg_host="$3" user="${4:-nifi}"
+  ni::ssh_sudo_stdin "$remote" env KS_PWD="${KEYSTORE_PASSWD:-}" \
+    TS_PWD="${TRUSTSTORE_PASSWD:-}" bash -s -- "$secure" "$reg_host" "$user" <<'RSH'
 set -o errexit -o nounset -o pipefail
-SECURE="$1"; HOST="$2"; NIFI_USER="$3"; KS_PWD="${4-}"; TS_PWD="${5-}"
+SECURE="$1"; HOST="$2"; NIFI_USER="$3";
 NIFI_HOME="${NIFI_HOME:-/opt/nifi}"
 NIFI_REGISTRY_HOME="${NIFI_REGISTRY_HOME:-/opt/nifi-registry}"
 CONF="$NIFI_REGISTRY_HOME/conf/nifi-registry.properties"
@@ -192,15 +193,14 @@ BASH
 # Registry variant
 # Tweak Registry logback.xml safely (dir/size/history); auto-repair if invalid
 ni::registry::configure_logging() {
-  local remote="$1" username="$2" logdir="$3" maxsize="${4:-100MB}" maxhist="${5:-30}"
-  ni::ssh_sudo "$remote" bash -s -- "$username" "$logdir" "$maxsize" "$maxhist" <<'BASH'
+  local remote="$1" username="$2" maxsize="${3:-100MB}" maxhist="${4:-30}"
+  ni::ssh_sudo "$remote" bash -s -- "$username" "$maxsize" "$maxhist" <<'BASH'
 set -o errexit -o nounset -o pipefail
-username="$1"; logdir="$2"; maxsize="$3"; maxhist="$4"
+username="$1"; maxsize="$2"; maxhist="$3"
 REG_HOME="${NIFI_REGISTRY_HOME:-/opt/nifi-registry}"
 LB="$REG_HOME/conf/logback.xml"
 
 [ -f "$LB" ] || { echo "WARN: $LB not found; skipping"; exit 0; }
-install -d -m 0755 -o $username -g $username "$logdir" || true
 
 # Ensure xmlstarlet is available
 if ! command -v xmlstarlet >/dev/null 2>&1; then

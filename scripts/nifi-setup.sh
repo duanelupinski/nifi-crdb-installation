@@ -43,15 +43,19 @@ SCALA_VERSION="${SCALA_VERSION:-2.13}"
 NIFI_VERSION="${NIFI_VERSION:-2.5.0}"
 NIFI_TOOLKIT_VERSION="${NIFI_TOOLKIT_VERSION:-2.5.0}"
 NIFI_USER="${NIFI_USER:-nifi}"
-KEYSTORE_PASSWD="${KEYSTORE_PASSWD:-changeit}"
-TRUSTSTORE_PASSWD="${TRUSTSTORE_PASSWD:-changeit}"
-SENSITIVE_KEY="${SENSITIVE_KEY:-tHiSiSnTaSaFeKeY}"
 
 NIFI_HEAP="${NIFI_HEAP:-3g}"
 NIFI_LOG_DIR="${NIFI_LOG_DIR:-/var/log/nifi}"
-REGISTRY_LOG_DIR="${REGISTRY_LOG_DIR:-/var/log/nifi-registry}"
 LOG_MAX_SIZE="${LOG_MAX_SIZE:-256MB}"
 LOG_MAX_HISTORY="${LOG_MAX_HISTORY:-14}"
+
+GH_URL="${GH_URL:-}"
+GH_USERNAME="${GH_USERNAME:-}"
+GH_USERTEXT="${GH_USERTEXT:-}"
+GH_EMAIL="${GH_EMAIL:-}"
+GH_BRANCH="${GH_BRANCH:-registry}"
+GH_DIRECTORY="${GH_DIRECTORY:-nifi-flows}"
+GH_REMOTE_NAME="${GH_REMOTE_NAME:-origin}"
 
 # --- helpers ---------------------------------------------------------------
 
@@ -218,6 +222,13 @@ OPTIONS (INSTALL):
   #   If NIFI_SSH_USER is set in .private/cluster.env we will pass -i <user>.
   #   Otherwise we do NOT pass -i so nifi-install.sh defaults to 'ubuntu'.
 
+  for all installations you'll need to provide a 16+ character key for sensitive properties
+  $ export SENSITIVE_KEY='******'
+
+  for secure installations you'll also need to provide passwords for the key and trust stores
+  $ export KEYSTORE_PASSWD='******'
+  $ export TRUSTSTORE_PASSWD='******'
+
   --insecure-downloads      defaults to $INSECURE_DOWNLOADS
   --curl-cacert             defaults to $CURL_CACERT
 
@@ -230,15 +241,22 @@ OPTIONS (INSTALL):
   --nifi-version            defaults to $NIFI_VERSION
   --nifi-toolkit-version    defaults to $NIFI_TOOLKIT_VERSION
   --nifi-user               defaults to $NIFI_USER
-  --keystore-pwd            defaults to $KEYSTORE_PASSWD
-  --truststore-pwd          defaults to $TRUSTSTORE_PASSWD
-  --sensitive-key           defaults to $SENSITIVE_KEY
 
   --nifi-heap)              defaults to $NIFI_HEAP
   --nifi-log-dir)           defaults to $NIFI_LOG_DIR
-  --registry-log-dir)       defaults to $REGISTRY_LOG_DIR
   --log-max-size)           defaults to $LOG_MAX_SIZE
   --log-max-history)        defaults to $LOG_MAX_HISTORY
+  
+  if using git with https://... you'll need to export GIT_TOKEN='******' with a fine-grained PAT with repo read/write
+  if using git with ssh remote you'll need to unset GIT_TOKEN and allow ssh credentials to authenticate
+
+  --gh-url                no default, if you have a repo then either https://… or git@github.com:…
+  --gh-username           no default, use for HTTPS connection but leave blank for if SSH
+  --gh-usertext           no default, git identity stored for the nifi user
+  --gh-email              no default, git identity stored for the nifi user
+  --gh-branch             defaults to $GH_BRANCH
+  --gh-directory          defaults to $GH_DIRECTORY
+  --gh-remote-name        defaults to $GH_REMOTE_NAME
 
 EOF
 }
@@ -278,15 +296,19 @@ while (( "$#" )); do
     --nifi-version)         NIFI_VERSION="$2"; shift 2 ;;
     --nifi-toolkit-version) NIFI_TOOLKIT_VERSION="$2"; shift 2 ;;
     --nifi-user)            NIFI_USER="$2"; shift 2 ;;
-    --keystore-pwd)         KEYSTORE_PASSWD="$2"; shift 2 ;;
-    --truststore-pwd)       TRUSTSTORE_PASSWD="$2"; shift 2 ;;
-    --sensitive-key)        SENSITIVE_KEY="$2"; shift 2 ;;
 
     --nifi-heap)           NIFI_HEAP="$2"; shift 2 ;;
     --nifi-log-dir)        NIFI_LOG_DIR="$2"; shift 2 ;;
-    --registry-log-dir)    REGISTRY_LOG_DIR="$2"; shift 2 ;;
     --log-max-size)        LOG_MAX_SIZE="$2"; shift 2 ;;
     --log-max-history)     LOG_MAX_HISTORY="$2"; shift 2 ;;
+
+    --gh-url)         GH_URL="$2"; shift 2 ;;
+    --gh-username)    GH_USERNAME="$2"; shift 2 ;;
+    --gh-usertext)    GH_USERTEXT="$2"; shift 2 ;;
+    --gh-email)       GH_EMAIL="$2"; shift 2 ;;
+    --gh-branch)      GH_BRANCH="$2"; shift 2 ;;
+    --gh-directory)   GH_DIRECTORY="$2"; shift 2 ;;
+    --gh-remote-name) GH_REMOTE_NAME="$2"; shift 2 ;;
     
     --) shift; break ;;
     -*) echo "Unknown option: $1"; HELP=true; break ;;
@@ -531,19 +553,23 @@ install_step() {
   argv+=("--nifi-version" "${NIFI_VERSION}")
   argv+=("--nifi-toolkit-version" "${NIFI_TOOLKIT_VERSION}")
   argv+=("--nifi-user" "${NIFI_USER}")
-  argv+=("--keystore-pwd" "${KEYSTORE_PASSWD}")
-  argv+=("--truststore-pwd" "${TRUSTSTORE_PASSWD}")
-  argv+=("--sensitive-key" "${SENSITIVE_KEY}")
 
   argv+=("--nifi-heap" "${NIFI_HEAP}")
   argv+=("--nifi-log-dir" "${NIFI_LOG_DIR}")
-  argv+=("--registry-log-dir" "${REGISTRY_LOG_DIR}")
   argv+=("--log-max-size" "${LOG_MAX_SIZE}")
   argv+=("--log-max-history" "${LOG_MAX_HISTORY}")
 
+  [[ -n "$GH_URL" ]] && argv+=( --gh-url  "$GH_URL" )
+  [[ -n "$GH_USERNAME" ]] && argv+=( --gh-username  "$GH_USERNAME" )
+  [[ -n "$GH_USERTEXT" ]] && argv+=( --gh-usertext  "$GH_USERTEXT" )
+  [[ -n "$GH_EMAIL" ]] && argv+=( --gh-email  "$GH_EMAIL" )
+  argv+=("--gh-branch" "${GH_BRANCH}")
+  argv+=("--gh-directory" "${GH_DIRECTORY}")
+  argv+=("--gh-remote-name" "${GH_REMOTE_NAME}")
+
   # and the mount points for the content and provenance repositories
-  [[ -n "$FLOWFILE_DIR"  ]] && argv+=( --flowfile-dir  "$FLOWFILE_DIR" )
-  [[ -n "$DATABASE_DIR"  ]] && argv+=( --database-dir  "$DATABASE_DIR" )
+  [[ -n "$FLOWFILE_DIR" ]] && argv+=( --flowfile-dir  "$FLOWFILE_DIR" )
+  [[ -n "$DATABASE_DIR" ]] && argv+=( --database-dir  "$DATABASE_DIR" )
   for d in "${CONTENT_DIRS[@]}";    do argv+=( --content-dir "$d" ); done
   for d in "${PROVENANCE_DIRS[@]}"; do argv+=( --provenance-dir "$d" ); done
 

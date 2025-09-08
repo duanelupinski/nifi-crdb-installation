@@ -119,12 +119,13 @@ REMOTE
 }
 
 # Common nifi.properties updates shared by all nodes
-# Usage: ni::nifi::configure_common <ssh-remote> <secure:true|false> <zk_connect> [nifi_user] [sensitive_key]
+# Usage: ni::nifi::configure_common <ssh-remote> <secure:true|false> <zk_connect> [nifi_user]
 ni::nifi::configure() {
-  local remote="$1" secure="$2" zk_connect="$3" user="${4:-nifi}" key="${5:-}" ks_pwd="${6:-}" ts_pwd="${7:-}"
-  ni::ssh_sudo_stdin "$remote" "$secure" "$zk_connect" "$user" "$key" "$ks_pwd" "$ts_pwd" <<'RSH'
+  local remote="$1" secure="$2" zk_connect="$3" user="${4:-nifi}"
+  ni::ssh_sudo_stdin "$remote" env KEY="${SENSITIVE_KEY:-}" KS_PWD="${KEYSTORE_PASSWD:-}" \
+    TS_PWD="${TRUSTSTORE_PASSWD:-}" bash -s -- "$secure" "$zk_connect" "$user" <<'RSH'
 set -o errexit -o nounset -o pipefail
-SECURE="$1"; ZK="$2"; NIFI_USER="$3"; KEY="${4-}"; KS_PWD="${5-}"; TS_PWD="${6-}"
+SECURE="$1"; ZK="$2"; NIFI_USER="$3";
 NIFI_HOME="${NIFI_HOME:-/opt/nifi}"
 CONF="$NIFI_HOME/conf/nifi.properties"
 HOST="$(hostname)"
@@ -838,46 +839,186 @@ ni::nifi::wait_nifi_cluster_ready() {
   ni::nifi::wait_nodes_api 600 && ni::nifi::wait_cluster_connected 600
 }
 
-# NiFi: ensure a Registry Client (NifiRegistryFlowRegistryClient) exists with correct URL
+# --- Internal helper: ensure controller-level StandardRestrictedSSLContextService
+# Echos the Controller Service ID
+ni::nifi::ensure_controller_ssl_service() {
+  local api="$1"
+  NIFI_HOME="${NIFI_HOME:-/opt/nifi}"
+  NIFI_KEYSTORE_FILE="${NIFI_KEYSTORE_FILE:-${NIFI_HOME}/certs/keystore.p12}"
+  NIFI_TRUSTSTORE_FILE="${NIFI_TRUSTSTORE_FILE:-${NIFI_HOME}/certs/truststore.p12}"
+  NIFI_KEYSTORE_TYPE="${NIFI_KEYSTORE_TYPE:-PKCS12}"
+  NIFI_TRUSTSTORE_TYPE="${NIFI_TRUSTSTORE_TYPE:-PKCS12}"
+  NIFI_CONTROLLER_SSL_NAME="${NIFI_CONTROLLER_SSL_NAME:-Controller SSL (Restricted)}"
+
+  # List controller-level services once
+  local list; list="$(ni::api::curl_nifi "${api}/flow/controller/controller-services")"
+
+  # Prefer an existing *restricted* SSL CS, otherwise any standard SSL CS
+  local cs_id; cs_id="$(
+    jq -r --arg name "$NIFI_CONTROLLER_SSL_NAME" '
+      # exact name match first
+      (.controllerServices[]?.component | select(.name==$name)
+         | select(.type=="org.apache.nifi.ssl.StandardRestrictedSSLContextService")
+         | .id) // empty
+    ' <<<"$list" | head -n1
+  )"
+
+  # Otherwise, reuse ANY existing StandardRestrictedSSLContextService (avoid duplicates)
+  if [[ -z "$cs_id" ]]; then
+    cs_id="$(
+      jq -r '
+        .controllerServices[]?.component
+        | select(.type=="org.apache.nifi.ssl.StandardRestrictedSSLContextService")
+        | .id // empty
+      ' <<<"$list" | head -n1
+    )"
+  fi
+  if [[ -z "$cs_id" ]]; then
+    cs_id="$(
+      jq -r '
+        .controllerServices[]?.component
+        | select(.type=="org.apache.nifi.ssl.StandardSSLContextService")
+        | .id // empty
+      ' <<<"$list" | head -n1
+    )"
+  fi
+
+  # Create only if none exist yet
+  if [[ -z "$cs_id" ]]; then
+    local payload; payload="$(jq -n --arg name "$NIFI_CONTROLLER_SSL_NAME" '
+      {
+        revision:{version:0},
+        component:{
+          name:$name,
+          type:"org.apache.nifi.ssl.StandardRestrictedSSLContextService",
+          properties:{}
+        }
+      }')"
+    local created; created="$(ni::api::curl_nifi "${api}/controller/controller-services" -X POST -d "$payload")" || return 1
+    cs_id="$(jq -r '.id' <<<"$created")"
+    [[ -n "$cs_id" ]] || { echo "ERR: failed to create controller SSL CS" >&2; return 1; }
+  fi
+
+  # Fetch current entity for revision
+  local ent; ent="$(ni::api::curl_nifi "${api}/controller-services/${cs_id}")" || return 1
+  local rev; rev="$(jq '.revision.version' <<<"$ent")"
+  local state; state="$(jq -r '.component.state' <<<"$ent")"
+
+  # If ENABLED, DISABLE so we can update properties safely
+  if [[ "$state" == "ENABLED" ]]; then
+    local dis_payload; dis_payload="$(jq -n --argjson v "$rev" '{revision:{version:$v}, state:"DISABLED"}')"
+    ni::api::curl_nifi "${api}/controller-services/${cs_id}/run-status" -X PUT -d "$dis_payload" >/dev/null || return 1
+    # refresh entity/rev after state change
+    ent="$(ni::api::curl_nifi "${api}/controller-services/${cs_id}")" || return 1
+    rev="$(jq '.revision.version' <<<"$ent")"
+  fi
+
+  # Build properties:
+  local props; props="$(jq -n \
+    --arg ks "$NIFI_KEYSTORE_FILE" \
+    --arg ksp "$KEYSTORE_PASSWD" \
+    --arg kp  "$KEYSTORE_PASSWD" \
+    --arg kst "$NIFI_KEYSTORE_TYPE" \
+    --arg ts "$NIFI_TRUSTSTORE_FILE" \
+    --arg tsp "$TRUSTSTORE_PASSWD" \
+    --arg tst "$NIFI_TRUSTSTORE_TYPE" '
+    {
+      "Keystore Filename":   $ks,
+      "Keystore Password":   $ksp,
+      "key-password":        $kp,
+      "Keystore Type":       $kst,
+      "Truststore Filename": $ts,
+      "Truststore Password": $tsp,
+      "Truststore Type":     $tst
+    }')"
+
+  # Update properties
+  local upd; upd="$(jq --argjson props "$props" '.component.properties=$props' <<<"$ent")"
+  ni::api::curl_nifi -X PUT "${api}/controller-services/${cs_id}" -d "$upd" >/dev/null || return 1
+
+  # Enable (idempotent)
+  ent="$(ni::api::curl_nifi "${api}/controller-services/${cs_id}")" || return 1
+  rev="$(jq '.revision.version' <<<"$ent")"
+  local en_payload; en_payload="$(jq -n --argjson v "$rev" '{revision:{version:$v}, state:"ENABLED"}')"
+  ni::api::curl_nifi -X PUT "${api}/controller-services/${cs_id}/run-status" -d "$en_payload" >/dev/null || return 1
+
+  # Optional: poll until validation completes or timeout
+  local tries=30
+  while (( tries-- > 0 )); do
+    local st; st="$(ni::api::curl_nifi "${api}/controller-services/${cs_id}")"
+    local state; state="$(jq -r '.component.state' <<<"$st")"
+    local valid; valid="$(jq -r '.component.validationStatus' <<<"$st")"
+    if [[ "$state" == "ENABLED" && "$valid" != "INVALID" ]]; then
+      break
+    fi
+    sleep 1
+  done
+
+  echo "$cs_id"
+}
+
+# NiFi: ensure a Registry Client (NifiRegistryFlowRegistryClient) exists with correct URL and SSL Context Service
 # Usage:
 #   export NIFI_USER=admin
 #   NIFI_NODES=(nifi-node-01 nifi-node-02)
 #   REGISTRY_HOST=nifi-registry
 #   ni::nifi::ensure_registry_client
 ni::nifi::ensure_registry_client() {
-  local registry_url=$(printf '%s://%s:%s/' "https" "${REGISTRY_HOST}" "19943")
+  local registry_url; registry_url="$(printf '%s://%s:%s/' "https" "${REGISTRY_HOST}" "19443")"
   local api; api="$(ni::api::api_base_for "${NIFI_NODES[0]}")"
 
-  # See if one already points to this URL (using the **lowercase** key NiFi expects)
-  local r; r="$(ni::api::curl_nifi "${api}/controller/registry-clients")"
-  local existing_id; existing_id="$(
+  # Ensure controller-scoped SSL CS exists/enabled; get its ID
+  local ssl_cs_id; ssl_cs_id="$(ni::nifi::ensure_controller_ssl_service "$api")" || return 1
+
+  List registry clients
+  local list; list="$(ni::api::curl_nifi "${api}/controller/registry-clients")" || return 1
+
+  # Prefer a client that already targets our URL; else reuse the first client; else create one
+  local rc_id; rc_id="$(
     jq -r --arg url "$registry_url" '
       .registries[]?.component
       | select((.properties.url // "") == $url)
       | .id // empty
-    ' <<<"$r" | head -n1
+    ' <<<"$list" | head -n1
   )"
 
-  if [[ -n "$existing_id" ]]; then
-    # Update in case URL changed (idempotent if the same)
-    local ent; ent="$(ni::api::curl_nifi "${api}/controller/registry-clients/${existing_id}")"
-    local upd; upd="$(jq --arg url "$registry_url" '.component.properties.url = $url' <<<"$ent")"
-    ni::api::curl_nifi -X PUT "${api}/controller/registry-clients/${existing_id}" -d "$upd" >/dev/null
-    echo "NiFi registry client updated (${existing_id})"
-    return 0
+  if [[ -z "$rc_id" ]]; then
+    rc_id="$(jq -r '.registries[]?.id // empty' <<<"$list" | head -n1)"
+    if [[ -z "$rc_id" ]]; then
+      local payload; payload="$(jq -n --arg url "$registry_url" '
+        {
+          revision:{version:0},
+          component:{
+            name:"NiFi Registry",
+            type:"org.apache.nifi.registry.flow.NifiRegistryFlowRegistryClient",
+            properties:{ url:$url }
+          }
+        }')"
+      local created; created="$(ni::api::curl_nifi "${api}/controller/registry-clients" -X POST -d "$payload")" || return 1
+      rc_id="$(jq -r '.id' <<<"$created")"
+      [[ -n "$rc_id" ]] || { echo "ERR: failed to create Registry Client" >&2; return 1; }
+      echo "Created Registry Client: $rc_id"
+    else
+      echo "Reusing existing Registry Client: $rc_id (will set URL and SSL link)."
+    fi
+  else
+    echo "Found Registry Client already at target URL: $rc_id"
   fi
 
-  # Create new client with the **correct** property key: "url"
-  local payload; payload="$(jq -n --arg url "$registry_url" '
-    {
-      revision: {version:0},
-      component: {
-        name: "NiFi Registry",
-        type: "org.apache.nifi.registry.flow.NifiRegistryFlowRegistryClient",
-        properties: { url: $url }
-      }
-    }
-  ')"
-  ni::api::curl_nifi -X POST "${api}/controller/registry-clients" -d "$payload" >/dev/null
-  echo "NiFi registry client created"
+  # Fetch entity to get current revision
+  local ent; ent="$(ni::api::curl_nifi "${api}/controller/registry-clients/${rc_id}")" || return 1
+
+  # Patch URL and SSL link using the confirmed property key: ssl-context-service
+  local patched; patched="$(
+    jq --arg url "$registry_url" --arg ssl "$ssl_cs_id" '
+      .component.properties.url = $url
+      | .component.properties["ssl-context-service"] = $ssl
+    ' <<<"$ent"
+  )"
+
+  # PUT update
+  ni::api::curl_nifi -X PUT "${api}/controller/registry-clients/${rc_id}" -d "$patched" >/dev/null \
+    || { echo "ERR: failed to update Registry Client" >&2; return 1; }
+
+  echo "Registry Client updated: URL=${registry_url}; ssl-context-service=${ssl_cs_id}"
 }
