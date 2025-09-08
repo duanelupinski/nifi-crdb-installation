@@ -1,0 +1,29 @@
+#cloud-config
+package_update: true
+package_upgrade: false
+
+packages:
+  - ca-certificates
+  - curl
+  - dnsutils
+  - gnupg2
+  - less
+  - net-tools
+  - screen
+  - software-properties-common
+  - vim
+  - openjdk-17-jre-headless
+  - unzip
+  - jq
+
+locale: en_US.UTF-8
+timezone: UTC
+manage_etc_hosts: false
+
+runcmd:
+  - [ bash, -lc, "echo 'NiFi node bootstrap ready on $(hostname)'" ]
+
+# power_state:
+#   mode: reboot
+#   timeout: 30
+#   condition: true

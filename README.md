@@ -6,6 +6,10 @@
 
 #### This page provides instructions on setting up a basic NiFi cluster that can be used to demo data integrations with CRDB
 
+## NOTES:
+- postgres driver installed at /opt/drivers/postgres/postgresql-jdbc.jar
+- zookeeper data folder is under /var/lib/zookeeper/data and /var/lib/zookeeper/datalog
+
 <hr/>
 
 ## The Servers
@@ -141,7 +145,7 @@ usage: ../nifi-crdb-installation.sh -h|? [Show Help = false]
                                     -i [Is Isolated = false]
                                     -d [CRDB Version = 21.2.2]
                                     -c [Certificate Location?]
-                                    -p [Postgres Version = 42.2.19]
+                                    -p [Postgres Version = 42.7.7]
                                     -k [Kafka Version = 2.13-3.0.0]
                                     -u [Kafka User = kafka]
                                     -w [Kafka Password = kafkapassword]

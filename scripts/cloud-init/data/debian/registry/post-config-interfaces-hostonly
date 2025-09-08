@@ -1,0 +1,9 @@
+---
+nic1:
+  id: 1
+  type: nat
+
+nic2:
+  id: 2
+  type: hostonly
+  adapter: #HOSTONLYIF#
