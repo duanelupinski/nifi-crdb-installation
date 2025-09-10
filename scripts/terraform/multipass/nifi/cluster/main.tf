@@ -3,6 +3,11 @@ locals {
   node02 = "${var.name_prefix}-node-02"
   node03 = "${var.name_prefix}-node-03"
   reg    = "${var.name_prefix}-registry"
+
+  content_arg    = "--content ${join(",", var.content_dirs)}"
+  provenance_arg = "--provenance ${join(",", var.provenance_dirs)}"
+  flowfile_arg   = "--flowfile ${var.flowfile_dir}"
+  database_arg   = "--database ${var.database_dir}"
 }
 
 # ---------- Instances ----------
@@ -10,7 +15,7 @@ resource "multipass_instance" "node01" {
   name           = local.node01
   cpus           = var.cpus
   memory         = var.memory
-  disk           = "300G" # was 100G; large enough for 5×50G loop files
+  disk           = "400G" # was 100G; large enough for 7×50G loop files
   image          = var.image
   cloudinit_file = "${path.module}/cloud-init/nifi-node.yaml"
 }
@@ -19,7 +24,7 @@ resource "multipass_instance" "node02" {
   name           = local.node02
   cpus           = var.cpus
   memory         = var.memory
-  disk           = "300G" # was 100G; large enough for 5×50G loop files
+  disk           = "400G" # was 100G; large enough for 7×50G loop files
   image          = var.image
   cloudinit_file = "${path.module}/cloud-init/nifi-node.yaml"
 }
@@ -28,7 +33,7 @@ resource "multipass_instance" "node03" {
   name           = local.node03
   cpus           = var.cpus
   memory         = var.memory
-  disk           = "300G" # was 100G; large enough for 5×50G loop files
+  disk           = "400G" # was 100G; large enough for 7×50G loop files
   image          = var.image
   cloudinit_file = "${path.module}/cloud-init/nifi-node.yaml"
 }
@@ -90,12 +95,12 @@ resource "terraform_data" "node01_post" {
       NAME="${multipass_instance.node01.name}"
 
       multipass exec "$NAME" -- sudo bash -lc " \
-        hostnamectl set-hostname 'nifi-node-01.nifi.demo' && \
-        printf '%s\n' 'nifi-node-01.nifi.demo' > /etc/hostname && \
+        hostnamectl set-hostname '${local.node01}.nifi.demo' && \
+        printf '%s\n' '${local.node01}.nifi.demo' > /etc/hostname && \
         mkdir -p /etc/cloud/cloud.cfg.d && \
         printf 'preserve_hostname: true\n' > /etc/cloud/cloud.cfg.d/99_preserve_hostname.cfg && \
-        (grep -q 'nifi-node-01.nifi.demo' /etc/hosts || \
-         echo '127.0.1.1 nifi-node-01.nifi.demo nifi-node-01' >> /etc/hosts) \
+        (grep -q '${local.node01}.nifi.demo' /etc/hosts || \
+         echo '127.0.1.1 ${local.node01}.nifi.demo ${local.node01}' >> /etc/hosts) \
       "
     EOT
   }
@@ -112,7 +117,7 @@ resource "null_resource" "fix_hosts_node01" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-lc"]
-    command     = "${path.module}/scripts/wait-ssh.sh -u ubuntu -t 600 -c nifi-node-01 && ${path.module}/scripts/fix-guest-hosts-resolution.sh nifi-node-01"
+    command     = "${path.module}/scripts/wait-ssh.sh -u ubuntu -t 600 -c ${local.node01} && ${path.module}/scripts/fix-guest-hosts-resolution.sh ${local.node01}"
   }
 }
 
@@ -125,7 +130,7 @@ resource "null_resource" "node01_loop_disks" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-lc"]
-    command     = "${path.module}/scripts/prepare-loop-disks.sh nifi-node-01 ${2 + var.content_count + var.provenance_count} 50G"
+    command     = "${path.module}/scripts/prepare-loop-disks.sh ${local.node01} --default-size ${var.default_disk_size} ${local.flowfile_arg} ${local.database_arg} ${local.content_arg} ${local.provenance_arg}"
   }
 }
 
@@ -177,12 +182,12 @@ resource "terraform_data" "node02_post" {
       NAME="${multipass_instance.node02.name}"
 
       multipass exec "$NAME" -- sudo bash -lc " \
-        hostnamectl set-hostname 'nifi-node-02.nifi.demo' && \
-        printf '%s\n' 'nifi-node-02.nifi.demo' > /etc/hostname && \
+        hostnamectl set-hostname '${local.node02}.nifi.demo' && \
+        printf '%s\n' '${local.node02}.nifi.demo' > /etc/hostname && \
         mkdir -p /etc/cloud/cloud.cfg.d && \
         printf 'preserve_hostname: true\n' > /etc/cloud/cloud.cfg.d/99_preserve_hostname.cfg && \
-        (grep -q 'nifi-node-02.nifi.demo' /etc/hosts || \
-         echo '127.0.1.1 nifi-node-02.nifi.demo nifi-node-02' >> /etc/hosts) \
+        (grep -q '${local.node02}.nifi.demo' /etc/hosts || \
+         echo '127.0.1.1 ${local.node02}.nifi.demo ${local.node02}' >> /etc/hosts) \
       "
     EOT
   }
@@ -200,7 +205,7 @@ resource "null_resource" "fix_hosts_node02" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-lc"]
-    command     = "${path.module}/scripts/wait-ssh.sh -u ubuntu -t 600 -c nifi-node-02 && ${path.module}/scripts/fix-guest-hosts-resolution.sh nifi-node-02"
+    command     = "${path.module}/scripts/wait-ssh.sh -u ubuntu -t 600 -c ${local.node02} && ${path.module}/scripts/fix-guest-hosts-resolution.sh ${local.node02}"
   }
 }
 
@@ -213,7 +218,7 @@ resource "null_resource" "node02_loop_disks" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-lc"]
-    command     = "${path.module}/scripts/prepare-loop-disks.sh nifi-node-02 ${2 + var.content_count + var.provenance_count} 50G"
+    command     = "${path.module}/scripts/prepare-loop-disks.sh ${local.node02} --default-size ${var.default_disk_size} ${local.flowfile_arg} ${local.database_arg} ${local.content_arg} ${local.provenance_arg}"
   }
 }
 
@@ -265,12 +270,12 @@ resource "terraform_data" "node03_post" {
       NAME="${multipass_instance.node03.name}"
 
       multipass exec "$NAME" -- sudo bash -lc " \
-        hostnamectl set-hostname 'nifi-node-03.nifi.demo' && \
-        printf '%s\n' 'nifi-node-03.nifi.demo' > /etc/hostname && \
+        hostnamectl set-hostname '${local.node03}.nifi.demo' && \
+        printf '%s\n' '${local.node03}.nifi.demo' > /etc/hostname && \
         mkdir -p /etc/cloud/cloud.cfg.d && \
         printf 'preserve_hostname: true\n' > /etc/cloud/cloud.cfg.d/99_preserve_hostname.cfg && \
-        (grep -q 'nifi-node-03.nifi.demo' /etc/hosts || \
-         echo '127.0.1.1 nifi-node-03.nifi.demo nifi-node-03' >> /etc/hosts) \
+        (grep -q '${local.node03}.nifi.demo' /etc/hosts || \
+         echo '127.0.1.1 ${local.node03}.nifi.demo ${local.node03}' >> /etc/hosts) \
       "
     EOT
   }
@@ -288,7 +293,7 @@ resource "null_resource" "fix_hosts_node03" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-lc"]
-    command     = "${path.module}/scripts/wait-ssh.sh -u ubuntu -t 600 -c nifi-node-03 && ${path.module}/scripts/fix-guest-hosts-resolution.sh nifi-node-03"
+    command     = "${path.module}/scripts/wait-ssh.sh -u ubuntu -t 600 -c ${local.node03} && ${path.module}/scripts/fix-guest-hosts-resolution.sh ${local.node03}"
   }
 }
 
@@ -301,7 +306,7 @@ resource "null_resource" "node03_loop_disks" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-lc"]
-    command     = "${path.module}/scripts/prepare-loop-disks.sh nifi-node-03 ${2 + var.content_count + var.provenance_count} 50G"
+    command     = "${path.module}/scripts/prepare-loop-disks.sh ${local.node03} --default-size ${var.default_disk_size} ${local.flowfile_arg} ${local.database_arg} ${local.content_arg} ${local.provenance_arg}"
   }
 }
 

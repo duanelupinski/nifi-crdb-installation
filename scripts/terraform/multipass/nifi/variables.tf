@@ -28,20 +28,27 @@ variable "ssh_pubkey_path" {
   default = "~/.ssh/id_rsa.pub"
 }
 
-variable "content_count" {
-  description = "Number of content disks per NiFi node"
-  type        = number
-  default     = 3
+variable "flowfile_dir" {
+  type = string
+  default = "/mnt/flowfile-repo"
 }
 
-variable "provenance_count" {
-  description = "Number of provenance disks per NiFi node"
-  type        = number
-  default     = 2
+variable "database_dir" {
+  type = string
+  default = "/mnt/database-repo"
 }
 
-variable "disk_mount_prefix" {
-  description = "Base mount path for loop disks"
-  type        = string
-  default     = "/mnt/disk"
+variable "content_dirs" {
+  type = list(string)
+  default = ["/mnt/cont-repo1","/mnt/cont-repo2","/mnt/cont-repo3"]
+}
+
+variable "provenance_dirs" {
+  type = list(string)
+  default = ["/mnt/prov-repo1","/mnt/prov-repo2"]
+}
+
+variable "default_disk_size" {
+  type = string
+  default = "50G"
 }
