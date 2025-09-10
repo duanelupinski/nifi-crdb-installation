@@ -6,7 +6,8 @@ module "cluster" {
   disk              = var.disk
   image             = var.image
   ssh_pubkey_path   = var.ssh_pubkey_path
-  content_count     = var.content_count
-  provenance_count  = var.provenance_count
-  disk_mount_prefix = var.disk_mount_prefix
+  flowfile_dir      = var.flowfile_dir
+  content_dirs      = var.content_dirs
+  provenance_dirs   = var.provenance_dirs
+  default_disk_size = var.default_disk_size
 }
