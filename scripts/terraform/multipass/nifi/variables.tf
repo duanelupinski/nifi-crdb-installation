@@ -15,7 +15,7 @@ variable "memory" {
 
 variable "disk" {
   type    = string
-  default = "100G"
+  default = "50G"
 }
 
 variable "image" {
@@ -30,12 +30,7 @@ variable "ssh_pubkey_path" {
 
 variable "flowfile_dir" {
   type = string
-  default = "/mnt/flowfile-repo"
-}
-
-variable "database_dir" {
-  type = string
-  default = "/mnt/database-repo"
+  default = "/mnt/flowfile-repo:20G"
 }
 
 variable "content_dirs" {

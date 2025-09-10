@@ -10,9 +10,8 @@ output "instance_names" {
 output "repo_mounts" {
   description = "NiFi repository mount directories"
   value = {
-    flowfile_dir    = var.flowfile_dir
-    database_dir    = var.database_dir
-    content_dirs    = var.content_dirs
-    provenance_dirs = var.provenance_dirs
+    flowfile_dir    = split(":", var.flowfile_dir)[0]
+    content_dirs    = [for s in var.content_dirs : trimspace(split(":", s)[0])]
+    provenance_dirs = [for s in var.provenance_dirs : trimspace(split(":", s)[0])]
   }
 }

@@ -5,7 +5,6 @@ variable "disk"              { type = string }
 variable "image"             { type = string }
 variable "ssh_pubkey_path"   { type = string }
 variable "flowfile_dir"      { type = string }
-variable "database_dir"      { type = string }
 variable "content_dirs"      { type = list(string) }
 variable "provenance_dirs"   { type = list(string) }
 variable "default_disk_size" { type = string }

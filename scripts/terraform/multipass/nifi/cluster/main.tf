@@ -7,7 +7,6 @@ locals {
   content_arg    = "--content ${join(",", var.content_dirs)}"
   provenance_arg = "--provenance ${join(",", var.provenance_dirs)}"
   flowfile_arg   = "--flowfile ${var.flowfile_dir}"
-  database_arg   = "--database ${var.database_dir}"
 }
 
 # ---------- Instances ----------
@@ -15,7 +14,7 @@ resource "multipass_instance" "node01" {
   name           = local.node01
   cpus           = var.cpus
   memory         = var.memory
-  disk           = "400G" # was 100G; large enough for 7×50G loop files
+  disk           = "300G" # was 50G; large enough for 6×50G loop files
   image          = var.image
   cloudinit_file = "${path.module}/cloud-init/nifi-node.yaml"
 }
@@ -24,7 +23,7 @@ resource "multipass_instance" "node02" {
   name           = local.node02
   cpus           = var.cpus
   memory         = var.memory
-  disk           = "400G" # was 100G; large enough for 7×50G loop files
+  disk           = "300G" # was 50G; large enough for 6×50G loop files
   image          = var.image
   cloudinit_file = "${path.module}/cloud-init/nifi-node.yaml"
 }
@@ -33,7 +32,7 @@ resource "multipass_instance" "node03" {
   name           = local.node03
   cpus           = var.cpus
   memory         = var.memory
-  disk           = "400G" # was 100G; large enough for 7×50G loop files
+  disk           = "300G" # was 50G; large enough for 6×50G loop files
   image          = var.image
   cloudinit_file = "${path.module}/cloud-init/nifi-node.yaml"
 }
@@ -130,7 +129,7 @@ resource "null_resource" "node01_loop_disks" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-lc"]
-    command     = "${path.module}/scripts/prepare-loop-disks.sh ${local.node01} --default-size ${var.default_disk_size} ${local.flowfile_arg} ${local.database_arg} ${local.content_arg} ${local.provenance_arg}"
+    command     = "${path.module}/scripts/prepare-loop-disks.sh ${local.node01} --default-size ${var.default_disk_size} ${local.flowfile_arg} ${local.content_arg} ${local.provenance_arg}"
   }
 }
 
@@ -218,7 +217,7 @@ resource "null_resource" "node02_loop_disks" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-lc"]
-    command     = "${path.module}/scripts/prepare-loop-disks.sh ${local.node02} --default-size ${var.default_disk_size} ${local.flowfile_arg} ${local.database_arg} ${local.content_arg} ${local.provenance_arg}"
+    command     = "${path.module}/scripts/prepare-loop-disks.sh ${local.node02} --default-size ${var.default_disk_size} ${local.flowfile_arg} ${local.content_arg} ${local.provenance_arg}"
   }
 }
 
@@ -306,7 +305,7 @@ resource "null_resource" "node03_loop_disks" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-lc"]
-    command     = "${path.module}/scripts/prepare-loop-disks.sh ${local.node03} --default-size ${var.default_disk_size} ${local.flowfile_arg} ${local.database_arg} ${local.content_arg} ${local.provenance_arg}"
+    command     = "${path.module}/scripts/prepare-loop-disks.sh ${local.node03} --default-size ${var.default_disk_size} ${local.flowfile_arg} ${local.content_arg} ${local.provenance_arg}"
   }
 }
 

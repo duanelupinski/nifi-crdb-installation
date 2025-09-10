@@ -4,7 +4,6 @@
 #   prepare-loop-disks.sh vm-1 \
 #     --default-size 50G \
 #     --flowfile /mnt/flowfile-repo \
-#     --database /mnt/database-repo \
 #     --content /mnt/cont-repo1,/mnt/cont-repo2,/mnt/cont-repo3 \
 #     --provenance /mnt/prov-repo1,/mnt/prov-repo2
 #
@@ -19,7 +18,6 @@ usage: prepare-loop-disks.sh <vm-name>
   [--img-dir DIR]               (default: /var/lib/nifi-disks)
   [--default-size SIZE]         (default: 50G)
   [--flowfile NAME[:SIZE]]      (e.g., /mnt/flowfile-repo[:60G])
-  [--database NAME[:SIZE]]      (e.g., /mnt/database-repo[:60G])
   [--content list]              comma list of NAME[:SIZE]
   [--provenance list]           comma list of NAME[:SIZE]
 USAGE
@@ -31,7 +29,6 @@ VM_NAME="${1:-}"; shift || true
 IMG_DIR="/var/lib/nifi-disks"
 DEFAULT_SIZE="50G"
 FLOWFILE_SPEC=""
-DATABASE_SPEC=""
 CONTENT_SPECS=""
 PROVENANCE_SPECS=""
 
@@ -40,7 +37,6 @@ while (($#)); do
     --img-dir)        IMG_DIR="$2"; shift 2;;
     --default-size)   DEFAULT_SIZE="$2"; shift 2;;
     --flowfile)       FLOWFILE_SPEC="$2"; shift 2;;
-    --database)       DATABASE_SPEC="$2"; shift 2;;
     --content)        CONTENT_SPECS="$2"; shift 2;;
     --provenance)     PROVENANCE_SPECS="$2"; shift 2;;
     -h|--help)        usage; exit 0;;
@@ -49,9 +45,9 @@ while (($#)); do
 done
 
 multipass exec "$VM_NAME" -- sudo bash -s -- \
-  "$IMG_DIR" "$DEFAULT_SIZE" "$FLOWFILE_SPEC" "$DATABASE_SPEC" "$CONTENT_SPECS" "$PROVENANCE_SPECS" <<'BASH'
+  "$IMG_DIR" "$DEFAULT_SIZE" "$FLOWFILE_SPEC" "$CONTENT_SPECS" "$PROVENANCE_SPECS" <<'BASH'
 set -o errexit -o nounset -o pipefail
-IMG_DIR="$1"; DEFAULT_SIZE="$2"; FLOWFILE_SPEC="$3"; DATABASE_SPEC="$4"; CONTENT_SPECS="$5"; PROVENANCE_SPECS="$6"
+IMG_DIR="$1"; DEFAULT_SIZE="$2"; FLOWFILE_SPEC="$3"; CONTENT_SPECS="$4"; PROVENANCE_SPECS="$5"
 
 need(){ command -v "$1" >/dev/null 2>&1 || { echo "Missing $1" >&2; exit 2; }; }
 need losetup; need mount; need blkid; need mkfs.ext4; need findmnt; need awk; need sed; need tr; need e2label
@@ -96,17 +92,8 @@ parse_single() {
 }
 
 parse_single "$FLOWFILE_SPEC"
-parse_single "$DATABASE_SPEC"
 split_list "$CONTENT_SPECS"
 split_list "$PROVENANCE_SPECS"
-
-# Clean old fstab lines we manage + legacy /mnt/diskN from this IMG_DIR
-if [ -f /etc/fstab ]; then
-  awk -v imgdir="$IMG_DIR" '
-    { if (index($1, imgdir) == 1) next; if ($2 ~ /^\/mnt\/disk[0-9]+$/) next; print }' \
-    /etc/fstab > /tmp/fstab.new || true
-  cat /tmp/fstab.new > /etc/fstab || true
-fi
 
 prepare_mount() {
   local mnt="$1" img="$2" size="$3"
