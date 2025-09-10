@@ -1,0 +1,619 @@
+{
+  "header" : {
+    "dataModelVersion" : "3"
+  },
+  "content" : {
+    "flowSnapshot" : {
+      "externalControllerServices" : { },
+      "flowContents" : {
+        "comments" : "",
+        "componentType" : "PROCESS_GROUP",
+        "connections" : [ {
+          "backPressureDataSizeThreshold" : "1 GB",
+          "backPressureObjectThreshold" : 10000,
+          "bends" : [ ],
+          "componentType" : "CONNECTION",
+          "destination" : {
+            "comments" : "",
+            "groupId" : "65eba5e7-1047-3ebc-91d3-51b3fba58043",
+            "id" : "ccd69902-8204-3c20-8328-1f900a4deebd",
+            "instanceIdentifier" : "20af7bf2-65a1-3aa0-a92e-f04c1a6b4ecf",
+            "name" : "RouteOnAttribute TPCC End Client Test",
+            "type" : "PROCESSOR"
+          },
+          "flowFileExpiration" : "0 sec",
+          "groupIdentifier" : "65eba5e7-1047-3ebc-91d3-51b3fba58043",
+          "identifier" : "be111df0-5cfb-35cb-b9f1-eb5a6e884765",
+          "instanceIdentifier" : "41533c09-8125-1227-0000-00003648a3db",
+          "labelIndex" : 0,
+          "loadBalanceCompression" : "DO_NOT_COMPRESS",
+          "loadBalanceStrategy" : "DO_NOT_LOAD_BALANCE",
+          "name" : "",
+          "partitioningAttribute" : "",
+          "prioritizers" : [ ],
+          "selectedRelationships" : [ "done" ],
+          "source" : {
+            "comments" : "",
+            "groupId" : "65eba5e7-1047-3ebc-91d3-51b3fba58043",
+            "id" : "5f362d1a-6638-304b-838e-db8a67a30231",
+            "instanceIdentifier" : "41533bdb-8125-1227-8575-4d619d346261",
+            "name" : "RouteOnAttribute TPCC Check Duration",
+            "type" : "PROCESSOR"
+          },
+          "zIndex" : 0
+        }, {
+          "backPressureDataSizeThreshold" : "1 GB",
+          "backPressureObjectThreshold" : 10000,
+          "bends" : [ ],
+          "componentType" : "CONNECTION",
+          "destination" : {
+            "comments" : "",
+            "groupId" : "65eba5e7-1047-3ebc-91d3-51b3fba58043",
+            "id" : "3d301652-dd17-315c-a9a2-ccd826f44eba",
+            "instanceIdentifier" : "7f29be4f-f63d-39c5-9140-12fb428fe284",
+            "name" : "DuplicateFlowFile TPCC Clients",
+            "type" : "PROCESSOR"
+          },
+          "flowFileExpiration" : "0 sec",
+          "groupIdentifier" : "65eba5e7-1047-3ebc-91d3-51b3fba58043",
+          "identifier" : "358aa0c4-aecf-35ee-bd71-bc20d78fd625",
+          "instanceIdentifier" : "3c004e25-018b-1000-ffff-ffffd527d38a",
+          "labelIndex" : 1,
+          "loadBalanceCompression" : "DO_NOT_COMPRESS",
+          "loadBalanceStrategy" : "DO_NOT_LOAD_BALANCE",
+          "name" : "",
+          "partitioningAttribute" : "",
+          "prioritizers" : [ ],
+          "selectedRelationships" : [ "success" ],
+          "source" : {
+            "comments" : "",
+            "groupId" : "65eba5e7-1047-3ebc-91d3-51b3fba58043",
+            "id" : "be1b7181-536c-3b06-90d8-395611696dc3",
+            "instanceIdentifier" : "3bfe5a2f-018b-1000-ffff-ffffe52ddad6",
+            "name" : "UpdateAttribute",
+            "type" : "PROCESSOR"
+          },
+          "zIndex" : 0
+        }, {
+          "backPressureDataSizeThreshold" : "1 GB",
+          "backPressureObjectThreshold" : 10000,
+          "bends" : [ ],
+          "componentType" : "CONNECTION",
+          "destination" : {
+            "groupId" : "65eba5e7-1047-3ebc-91d3-51b3fba58043",
+            "id" : "b9f8df31-d765-3ba4-a08f-e21017da7235",
+            "instanceIdentifier" : "4def8478-d9a2-36af-aeb7-0ec15ec6d0e8",
+            "name" : "testComplete",
+            "type" : "OUTPUT_PORT"
+          },
+          "flowFileExpiration" : "0 sec",
+          "groupIdentifier" : "65eba5e7-1047-3ebc-91d3-51b3fba58043",
+          "identifier" : "9461d31b-452b-39a1-a9ef-fbb62ba18ddb",
+          "instanceIdentifier" : "28788446-5115-3578-b900-a0d371f62462",
+          "labelIndex" : 1,
+          "loadBalanceCompression" : "DO_NOT_COMPRESS",
+          "loadBalanceStrategy" : "DO_NOT_LOAD_BALANCE",
+          "name" : "",
+          "partitioningAttribute" : "",
+          "prioritizers" : [ ],
+          "selectedRelationships" : [ "done" ],
+          "source" : {
+            "comments" : "",
+            "groupId" : "65eba5e7-1047-3ebc-91d3-51b3fba58043",
+            "id" : "ccd69902-8204-3c20-8328-1f900a4deebd",
+            "instanceIdentifier" : "20af7bf2-65a1-3aa0-a92e-f04c1a6b4ecf",
+            "name" : "RouteOnAttribute TPCC End Client Test",
+            "type" : "PROCESSOR"
+          },
+          "zIndex" : 0
+        }, {
+          "backPressureDataSizeThreshold" : "1 GB",
+          "backPressureObjectThreshold" : 10000,
+          "bends" : [ ],
+          "componentType" : "CONNECTION",
+          "destination" : {
+            "comments" : "",
+            "groupId" : "65eba5e7-1047-3ebc-91d3-51b3fba58043",
+            "id" : "f7225a04-bd51-305b-bf1d-0d77692760aa",
+            "instanceIdentifier" : "83bc31ca-1fbb-1e59-9be7-d449a9bea878",
+            "name" : "ExecuteStreamCommand TPCC Transactions",
+            "type" : "PROCESSOR"
+          },
+          "flowFileExpiration" : "0 sec",
+          "groupIdentifier" : "65eba5e7-1047-3ebc-91d3-51b3fba58043",
+          "identifier" : "eb2df344-a699-3f5d-a612-1a95ffd66206",
+          "instanceIdentifier" : "9ed4cadb-c5f6-3ce4-a232-9b57236e21c2",
+          "labelIndex" : 1,
+          "loadBalanceCompression" : "DO_NOT_COMPRESS",
+          "loadBalanceStrategy" : "ROUND_ROBIN",
+          "name" : "",
+          "partitioningAttribute" : "",
+          "prioritizers" : [ ],
+          "selectedRelationships" : [ "success" ],
+          "source" : {
+            "comments" : "",
+            "groupId" : "65eba5e7-1047-3ebc-91d3-51b3fba58043",
+            "id" : "3d301652-dd17-315c-a9a2-ccd826f44eba",
+            "instanceIdentifier" : "7f29be4f-f63d-39c5-9140-12fb428fe284",
+            "name" : "DuplicateFlowFile TPCC Clients",
+            "type" : "PROCESSOR"
+          },
+          "zIndex" : 0
+        }, {
+          "backPressureDataSizeThreshold" : "1 GB",
+          "backPressureObjectThreshold" : 10000,
+          "bends" : [ {
+            "x" : 2280.0,
+            "y" : 720.0
+          }, {
+            "x" : 2280.0,
+            "y" : 200.0
+          } ],
+          "componentType" : "CONNECTION",
+          "destination" : {
+            "comments" : "",
+            "groupId" : "65eba5e7-1047-3ebc-91d3-51b3fba58043",
+            "id" : "f7225a04-bd51-305b-bf1d-0d77692760aa",
+            "instanceIdentifier" : "83bc31ca-1fbb-1e59-9be7-d449a9bea878",
+            "name" : "ExecuteStreamCommand TPCC Transactions",
+            "type" : "PROCESSOR"
+          },
+          "flowFileExpiration" : "0 sec",
+          "groupIdentifier" : "65eba5e7-1047-3ebc-91d3-51b3fba58043",
+          "identifier" : "b1970d5d-a05c-3f01-9386-102023d0d730",
+          "instanceIdentifier" : "41533c00-8125-1227-ffff-ffff919af388",
+          "labelIndex" : 0,
+          "loadBalanceCompression" : "DO_NOT_COMPRESS",
+          "loadBalanceStrategy" : "DO_NOT_LOAD_BALANCE",
+          "name" : "",
+          "partitioningAttribute" : "",
+          "prioritizers" : [ ],
+          "selectedRelationships" : [ "unmatched" ],
+          "source" : {
+            "comments" : "",
+            "groupId" : "65eba5e7-1047-3ebc-91d3-51b3fba58043",
+            "id" : "5f362d1a-6638-304b-838e-db8a67a30231",
+            "instanceIdentifier" : "41533bdb-8125-1227-8575-4d619d346261",
+            "name" : "RouteOnAttribute TPCC Check Duration",
+            "type" : "PROCESSOR"
+          },
+          "zIndex" : 0
+        }, {
+          "backPressureDataSizeThreshold" : "1 GB",
+          "backPressureObjectThreshold" : 10000,
+          "bends" : [ ],
+          "componentType" : "CONNECTION",
+          "destination" : {
+            "comments" : "",
+            "groupId" : "65eba5e7-1047-3ebc-91d3-51b3fba58043",
+            "id" : "5f362d1a-6638-304b-838e-db8a67a30231",
+            "instanceIdentifier" : "41533bdb-8125-1227-8575-4d619d346261",
+            "name" : "RouteOnAttribute TPCC Check Duration",
+            "type" : "PROCESSOR"
+          },
+          "flowFileExpiration" : "0 sec",
+          "groupIdentifier" : "65eba5e7-1047-3ebc-91d3-51b3fba58043",
+          "identifier" : "b8365d4a-dc5c-34c6-a4af-b0b41f773b3b",
+          "instanceIdentifier" : "c74c1d62-0189-1000-0000-000034dc0bf9",
+          "labelIndex" : 0,
+          "loadBalanceCompression" : "DO_NOT_COMPRESS",
+          "loadBalanceStrategy" : "DO_NOT_LOAD_BALANCE",
+          "name" : "",
+          "partitioningAttribute" : "",
+          "prioritizers" : [ ],
+          "selectedRelationships" : [ "output stream", "nonzero status" ],
+          "source" : {
+            "comments" : "",
+            "groupId" : "65eba5e7-1047-3ebc-91d3-51b3fba58043",
+            "id" : "f7225a04-bd51-305b-bf1d-0d77692760aa",
+            "instanceIdentifier" : "83bc31ca-1fbb-1e59-9be7-d449a9bea878",
+            "name" : "ExecuteStreamCommand TPCC Transactions",
+            "type" : "PROCESSOR"
+          },
+          "zIndex" : 15
+        }, {
+          "backPressureDataSizeThreshold" : "1 GB",
+          "backPressureObjectThreshold" : 10000,
+          "bends" : [ ],
+          "componentType" : "CONNECTION",
+          "destination" : {
+            "comments" : "",
+            "groupId" : "65eba5e7-1047-3ebc-91d3-51b3fba58043",
+            "id" : "3d301652-dd17-315c-a9a2-ccd826f44eba",
+            "instanceIdentifier" : "7f29be4f-f63d-39c5-9140-12fb428fe284",
+            "name" : "DuplicateFlowFile TPCC Clients",
+            "type" : "PROCESSOR"
+          },
+          "flowFileExpiration" : "0 sec",
+          "groupIdentifier" : "65eba5e7-1047-3ebc-91d3-51b3fba58043",
+          "identifier" : "591e256e-b7eb-39e4-80de-3c530d7ecc10",
+          "instanceIdentifier" : "47c2373f-3a78-3553-ac33-ce617a5f56a6",
+          "labelIndex" : 1,
+          "loadBalanceCompression" : "DO_NOT_COMPRESS",
+          "loadBalanceStrategy" : "DO_NOT_LOAD_BALANCE",
+          "name" : "",
+          "partitioningAttribute" : "",
+          "prioritizers" : [ ],
+          "selectedRelationships" : [ "" ],
+          "source" : {
+            "groupId" : "65eba5e7-1047-3ebc-91d3-51b3fba58043",
+            "id" : "a2a3729d-b984-3e83-b85a-e5a5fcd0e6ab",
+            "instanceIdentifier" : "8f26e4e2-7b7c-3379-a62f-0ba571fcef4d",
+            "name" : "startTest",
+            "type" : "INPUT_PORT"
+          },
+          "zIndex" : 0
+        } ],
+        "controllerServices" : [ ],
+        "defaultBackPressureDataSizeThreshold" : "1 GB",
+        "defaultBackPressureObjectThreshold" : 10000,
+        "defaultFlowFileExpiration" : "0 sec",
+        "flowFileConcurrency" : "UNBOUNDED",
+        "flowFileOutboundPolicy" : "STREAM_WHEN_AVAILABLE",
+        "funnels" : [ ],
+        "identifier" : "65eba5e7-1047-3ebc-91d3-51b3fba58043",
+        "inputPorts" : [ {
+          "allowRemoteAccess" : false,
+          "componentType" : "INPUT_PORT",
+          "concurrentlySchedulableTaskCount" : 1,
+          "groupIdentifier" : "65eba5e7-1047-3ebc-91d3-51b3fba58043",
+          "identifier" : "a2a3729d-b984-3e83-b85a-e5a5fcd0e6ab",
+          "instanceIdentifier" : "8f26e4e2-7b7c-3379-a62f-0ba571fcef4d",
+          "name" : "startTest",
+          "position" : {
+            "x" : 576.0,
+            "y" : 176.0
+          },
+          "scheduledState" : "ENABLED",
+          "type" : "INPUT_PORT"
+        } ],
+        "instanceIdentifier" : "7c158b26-9022-3602-a75f-2727285bd385",
+        "labels" : [ ],
+        "name" : "Execute TPCC Test",
+        "outputPorts" : [ {
+          "allowRemoteAccess" : false,
+          "componentType" : "OUTPUT_PORT",
+          "concurrentlySchedulableTaskCount" : 1,
+          "groupIdentifier" : "65eba5e7-1047-3ebc-91d3-51b3fba58043",
+          "identifier" : "b9f8df31-d765-3ba4-a08f-e21017da7235",
+          "instanceIdentifier" : "4def8478-d9a2-36af-aeb7-0ec15ec6d0e8",
+          "name" : "testComplete",
+          "position" : {
+            "x" : 576.0,
+            "y" : 696.0
+          },
+          "scheduledState" : "ENABLED",
+          "type" : "OUTPUT_PORT"
+        } ],
+        "position" : {
+          "x" : 960.0,
+          "y" : 544.0
+        },
+        "processGroups" : [ ],
+        "processors" : [ {
+          "autoTerminatedRelationships" : [ "original" ],
+          "backoffMechanism" : "PENALIZE_FLOWFILE",
+          "bulletinLevel" : "WARN",
+          "bundle" : {
+            "artifact" : "nifi-standard-nar",
+            "group" : "org.apache.nifi",
+            "version" : "1.22.0"
+          },
+          "comments" : "",
+          "componentType" : "PROCESSOR",
+          "concurrentlySchedulableTaskCount" : 64,
+          "executionNode" : "ALL",
+          "groupIdentifier" : "65eba5e7-1047-3ebc-91d3-51b3fba58043",
+          "identifier" : "f7225a04-bd51-305b-bf1d-0d77692760aa",
+          "instanceIdentifier" : "83bc31ca-1fbb-1e59-9be7-d449a9bea878",
+          "maxBackoffPeriod" : "10 mins",
+          "name" : "ExecuteStreamCommand TPCC Transactions",
+          "penaltyDuration" : "30 sec",
+          "position" : {
+            "x" : 1800.0,
+            "y" : 136.0
+          },
+          "properties" : {
+            "argumentsStrategy" : "Command Arguments Property",
+            "Max Attribute Length" : "256",
+            "Working Directory" : "/home/nifi/scripts",
+            "Command Path" : "ssh",
+            "Argument Delimiter" : ";",
+            "Ignore STDIN" : "true",
+            "Command Arguments" : "-t;-o;StrictHostKeyChecking=no;${hostUsername}@${hostMachine};${hostScripts}/tpcc/${testTarget}/execute-transactions.sh ${database.workload} ${database.address} ${numWarehouses} ${testStart} ${testDuration} ${testConcurrency} ${database.cpus} ${testThroughput} ${terraformPath} ${testProvider} ${terraformKeyName} ${terraformKeyUser}"
+          },
+          "propertyDescriptors" : {
+            "argumentsStrategy" : {
+              "displayName" : "Command Arguments Strategy",
+              "identifiesControllerService" : false,
+              "name" : "argumentsStrategy",
+              "sensitive" : false
+            },
+            "Max Attribute Length" : {
+              "displayName" : "Max Attribute Length",
+              "identifiesControllerService" : false,
+              "name" : "Max Attribute Length",
+              "sensitive" : false
+            },
+            "Working Directory" : {
+              "displayName" : "Working Directory",
+              "identifiesControllerService" : false,
+              "name" : "Working Directory",
+              "sensitive" : false
+            },
+            "Command Path" : {
+              "displayName" : "Command Path",
+              "identifiesControllerService" : false,
+              "name" : "Command Path",
+              "sensitive" : false
+            },
+            "Output Destination Attribute" : {
+              "displayName" : "Output Destination Attribute",
+              "identifiesControllerService" : false,
+              "name" : "Output Destination Attribute",
+              "sensitive" : false
+            },
+            "Argument Delimiter" : {
+              "displayName" : "Argument Delimiter",
+              "identifiesControllerService" : false,
+              "name" : "Argument Delimiter",
+              "sensitive" : false
+            },
+            "Ignore STDIN" : {
+              "displayName" : "Ignore STDIN",
+              "identifiesControllerService" : false,
+              "name" : "Ignore STDIN",
+              "sensitive" : false
+            },
+            "Command Arguments" : {
+              "displayName" : "Command Arguments",
+              "identifiesControllerService" : false,
+              "name" : "Command Arguments",
+              "sensitive" : false
+            }
+          },
+          "retriedRelationships" : [ ],
+          "retryCount" : 10,
+          "runDurationMillis" : 0,
+          "scheduledState" : "ENABLED",
+          "schedulingPeriod" : "0 sec",
+          "schedulingStrategy" : "TIMER_DRIVEN",
+          "style" : { },
+          "type" : "org.apache.nifi.processors.standard.ExecuteStreamCommand",
+          "yieldDuration" : "1 sec"
+        }, {
+          "autoTerminatedRelationships" : [ ],
+          "backoffMechanism" : "PENALIZE_FLOWFILE",
+          "bulletinLevel" : "WARN",
+          "bundle" : {
+            "artifact" : "nifi-standard-nar",
+            "group" : "org.apache.nifi",
+            "version" : "1.22.0"
+          },
+          "comments" : "",
+          "componentType" : "PROCESSOR",
+          "concurrentlySchedulableTaskCount" : 1,
+          "executionNode" : "ALL",
+          "groupIdentifier" : "65eba5e7-1047-3ebc-91d3-51b3fba58043",
+          "identifier" : "3d301652-dd17-315c-a9a2-ccd826f44eba",
+          "instanceIdentifier" : "7f29be4f-f63d-39c5-9140-12fb428fe284",
+          "maxBackoffPeriod" : "10 mins",
+          "name" : "DuplicateFlowFile TPCC Clients",
+          "penaltyDuration" : "30 sec",
+          "position" : {
+            "x" : 1136.0,
+            "y" : 136.0
+          },
+          "properties" : {
+            "Number of Copies" : "${testConcurrency:minus(1)}"
+          },
+          "propertyDescriptors" : {
+            "Number of Copies" : {
+              "displayName" : "Number of Copies",
+              "identifiesControllerService" : false,
+              "name" : "Number of Copies",
+              "sensitive" : false
+            }
+          },
+          "retriedRelationships" : [ ],
+          "retryCount" : 10,
+          "runDurationMillis" : 0,
+          "scheduledState" : "ENABLED",
+          "schedulingPeriod" : "0 sec",
+          "schedulingStrategy" : "TIMER_DRIVEN",
+          "style" : { },
+          "type" : "org.apache.nifi.processors.standard.DuplicateFlowFile",
+          "yieldDuration" : "1 sec"
+        }, {
+          "autoTerminatedRelationships" : [ ],
+          "backoffMechanism" : "PENALIZE_FLOWFILE",
+          "bulletinLevel" : "WARN",
+          "bundle" : {
+            "artifact" : "nifi-standard-nar",
+            "group" : "org.apache.nifi",
+            "version" : "1.22.0"
+          },
+          "comments" : "",
+          "componentType" : "PROCESSOR",
+          "concurrentlySchedulableTaskCount" : 1,
+          "executionNode" : "ALL",
+          "groupIdentifier" : "65eba5e7-1047-3ebc-91d3-51b3fba58043",
+          "identifier" : "5f362d1a-6638-304b-838e-db8a67a30231",
+          "instanceIdentifier" : "41533bdb-8125-1227-8575-4d619d346261",
+          "maxBackoffPeriod" : "10 mins",
+          "name" : "RouteOnAttribute TPCC Check Duration",
+          "penaltyDuration" : "30 sec",
+          "position" : {
+            "x" : 1800.0,
+            "y" : 656.0
+          },
+          "properties" : {
+            "Routing Strategy" : "Route to Property name",
+            "done" : "${now():toNumber():minus(${testDuration:multiply(60000)}):ge(${testStart:toInstant(\"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'\", \"GMT\"):toNumber()})}"
+          },
+          "propertyDescriptors" : {
+            "Routing Strategy" : {
+              "displayName" : "Routing Strategy",
+              "identifiesControllerService" : false,
+              "name" : "Routing Strategy",
+              "sensitive" : false
+            },
+            "done" : {
+              "displayName" : "done",
+              "identifiesControllerService" : false,
+              "name" : "done",
+              "sensitive" : false
+            }
+          },
+          "retriedRelationships" : [ ],
+          "retryCount" : 10,
+          "runDurationMillis" : 25,
+          "scheduledState" : "ENABLED",
+          "schedulingPeriod" : "0 sec",
+          "schedulingStrategy" : "TIMER_DRIVEN",
+          "style" : { },
+          "type" : "org.apache.nifi.processors.standard.RouteOnAttribute",
+          "yieldDuration" : "1 sec"
+        }, {
+          "autoTerminatedRelationships" : [ "unmatched" ],
+          "backoffMechanism" : "PENALIZE_FLOWFILE",
+          "bulletinLevel" : "WARN",
+          "bundle" : {
+            "artifact" : "nifi-standard-nar",
+            "group" : "org.apache.nifi",
+            "version" : "1.22.0"
+          },
+          "comments" : "",
+          "componentType" : "PROCESSOR",
+          "concurrentlySchedulableTaskCount" : 1,
+          "executionNode" : "ALL",
+          "groupIdentifier" : "65eba5e7-1047-3ebc-91d3-51b3fba58043",
+          "identifier" : "ccd69902-8204-3c20-8328-1f900a4deebd",
+          "instanceIdentifier" : "20af7bf2-65a1-3aa0-a92e-f04c1a6b4ecf",
+          "maxBackoffPeriod" : "10 mins",
+          "name" : "RouteOnAttribute TPCC End Client Test",
+          "penaltyDuration" : "30 sec",
+          "position" : {
+            "x" : 1136.0,
+            "y" : 656.0
+          },
+          "properties" : {
+            "Routing Strategy" : "Route to Property name",
+            "done" : "${copy.index:equals(0)}"
+          },
+          "propertyDescriptors" : {
+            "Routing Strategy" : {
+              "displayName" : "Routing Strategy",
+              "identifiesControllerService" : false,
+              "name" : "Routing Strategy",
+              "sensitive" : false
+            },
+            "done" : {
+              "displayName" : "done",
+              "identifiesControllerService" : false,
+              "name" : "done",
+              "sensitive" : false
+            }
+          },
+          "retriedRelationships" : [ ],
+          "retryCount" : 10,
+          "runDurationMillis" : 25,
+          "scheduledState" : "ENABLED",
+          "schedulingPeriod" : "0 sec",
+          "schedulingStrategy" : "TIMER_DRIVEN",
+          "style" : { },
+          "type" : "org.apache.nifi.processors.standard.RouteOnAttribute",
+          "yieldDuration" : "1 sec"
+        }, {
+          "autoTerminatedRelationships" : [ ],
+          "backoffMechanism" : "PENALIZE_FLOWFILE",
+          "bulletinLevel" : "WARN",
+          "bundle" : {
+            "artifact" : "nifi-update-attribute-nar",
+            "group" : "org.apache.nifi",
+            "version" : "1.22.0"
+          },
+          "comments" : "",
+          "componentType" : "PROCESSOR",
+          "concurrentlySchedulableTaskCount" : 1,
+          "executionNode" : "ALL",
+          "groupIdentifier" : "65eba5e7-1047-3ebc-91d3-51b3fba58043",
+          "identifier" : "be1b7181-536c-3b06-90d8-395611696dc3",
+          "instanceIdentifier" : "3bfe5a2f-018b-1000-ffff-ffffe52ddad6",
+          "maxBackoffPeriod" : "10 mins",
+          "name" : "UpdateAttribute",
+          "penaltyDuration" : "30 sec",
+          "position" : {
+            "x" : 832.0,
+            "y" : 368.0
+          },
+          "properties" : {
+            "database.connections" : "1",
+            "Store State" : "Do not store state",
+            "canonical-value-lookup-cache-size" : "100",
+            "testDuration" : "5",
+            "testConcurrency" : "1"
+          },
+          "propertyDescriptors" : {
+            "database.connections" : {
+              "displayName" : "database.connections",
+              "identifiesControllerService" : false,
+              "name" : "database.connections",
+              "sensitive" : false
+            },
+            "Delete Attributes Expression" : {
+              "displayName" : "Delete Attributes Expression",
+              "identifiesControllerService" : false,
+              "name" : "Delete Attributes Expression",
+              "sensitive" : false
+            },
+            "Store State" : {
+              "displayName" : "Store State",
+              "identifiesControllerService" : false,
+              "name" : "Store State",
+              "sensitive" : false
+            },
+            "canonical-value-lookup-cache-size" : {
+              "displayName" : "Cache Value Lookup Cache Size",
+              "identifiesControllerService" : false,
+              "name" : "canonical-value-lookup-cache-size",
+              "sensitive" : false
+            },
+            "Stateful Variables Initial Value" : {
+              "displayName" : "Stateful Variables Initial Value",
+              "identifiesControllerService" : false,
+              "name" : "Stateful Variables Initial Value",
+              "sensitive" : false
+            },
+            "testDuration" : {
+              "displayName" : "testDuration",
+              "identifiesControllerService" : false,
+              "name" : "testDuration",
+              "sensitive" : false
+            },
+            "testConcurrency" : {
+              "displayName" : "testConcurrency",
+              "identifiesControllerService" : false,
+              "name" : "testConcurrency",
+              "sensitive" : false
+            }
+          },
+          "retriedRelationships" : [ ],
+          "retryCount" : 10,
+          "runDurationMillis" : 25,
+          "scheduledState" : "ENABLED",
+          "schedulingPeriod" : "0 sec",
+          "schedulingStrategy" : "TIMER_DRIVEN",
+          "style" : { },
+          "type" : "org.apache.nifi.processors.attributes.UpdateAttribute",
+          "yieldDuration" : "1 sec"
+        } ],
+        "remoteProcessGroups" : [ ],
+        "variables" : { }
+      },
+      "flowEncodingVersion" : "1.0",
+      "parameterContexts" : { },
+      "parameterProviders" : { }
+    }
+  }
+}

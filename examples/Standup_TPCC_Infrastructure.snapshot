@@ -1,0 +1,1431 @@
+{
+  "header" : {
+    "dataModelVersion" : "3"
+  },
+  "content" : {
+    "flowSnapshot" : {
+      "externalControllerServices" : { },
+      "flowContents" : {
+        "comments" : "",
+        "componentType" : "PROCESS_GROUP",
+        "connections" : [ {
+          "backPressureDataSizeThreshold" : "1 GB",
+          "backPressureObjectThreshold" : 10000,
+          "bends" : [ ],
+          "componentType" : "CONNECTION",
+          "destination" : {
+            "comments" : "",
+            "groupId" : "44f474ee-cab1-30d5-87ba-27332624e423",
+            "id" : "d7b97df8-1d2c-33d8-87f2-b677e3fd63af",
+            "instanceIdentifier" : "cd423453-a729-1a59-8a09-9710f0c54fc5",
+            "name" : "ExecuteStreamCommand Wait to Retry TPCC Terraform",
+            "type" : "PROCESSOR"
+          },
+          "flowFileExpiration" : "0 sec",
+          "groupIdentifier" : "44f474ee-cab1-30d5-87ba-27332624e423",
+          "identifier" : "0591ca4e-9a2b-38a1-839a-34a763c8216d",
+          "instanceIdentifier" : "2c9339cb-b752-111b-ffff-ffffe5cf1559",
+          "labelIndex" : 0,
+          "loadBalanceCompression" : "DO_NOT_COMPRESS",
+          "loadBalanceStrategy" : "DO_NOT_LOAD_BALANCE",
+          "name" : "",
+          "partitioningAttribute" : "",
+          "prioritizers" : [ ],
+          "selectedRelationships" : [ "output stream" ],
+          "source" : {
+            "comments" : "",
+            "groupId" : "44f474ee-cab1-30d5-87ba-27332624e423",
+            "id" : "30bec924-da23-3031-b16c-0ca52873ff0e",
+            "instanceIdentifier" : "5b0f384a-bf7c-1cbf-8c4e-b6297b50b1f1",
+            "name" : "ExecuteStreamCommand Destroy Terraform TPCC Resources",
+            "type" : "PROCESSOR"
+          },
+          "zIndex" : 0
+        }, {
+          "backPressureDataSizeThreshold" : "1 GB",
+          "backPressureObjectThreshold" : 10000,
+          "bends" : [ ],
+          "componentType" : "CONNECTION",
+          "destination" : {
+            "comments" : "",
+            "groupId" : "44f474ee-cab1-30d5-87ba-27332624e423",
+            "id" : "8d9cf546-ca61-383d-a56c-6c833cf8dd75",
+            "instanceIdentifier" : "8d0692f3-e54f-3063-9c82-30c358ed8191",
+            "name" : "JoltTransformJSON TPCC Database Address",
+            "type" : "PROCESSOR"
+          },
+          "flowFileExpiration" : "0 sec",
+          "groupIdentifier" : "44f474ee-cab1-30d5-87ba-27332624e423",
+          "identifier" : "7435e0a0-9501-36cf-ad78-db7c66720f2d",
+          "instanceIdentifier" : "f7926eef-088b-33ae-b5cf-692f0fef10d7",
+          "labelIndex" : 1,
+          "loadBalanceCompression" : "DO_NOT_COMPRESS",
+          "loadBalanceStrategy" : "DO_NOT_LOAD_BALANCE",
+          "name" : "",
+          "partitioningAttribute" : "",
+          "prioritizers" : [ ],
+          "selectedRelationships" : [ "output stream" ],
+          "source" : {
+            "comments" : "",
+            "groupId" : "44f474ee-cab1-30d5-87ba-27332624e423",
+            "id" : "2b842468-51bb-34af-adee-609d319e75b6",
+            "instanceIdentifier" : "2fc7257e-0fb1-3de4-9f2d-c749634d07dd",
+            "name" : "ExecuteStreamCommand Read Terraform TPCC Output",
+            "type" : "PROCESSOR"
+          },
+          "zIndex" : 0
+        }, {
+          "backPressureDataSizeThreshold" : "1 GB",
+          "backPressureObjectThreshold" : 10000,
+          "bends" : [ ],
+          "componentType" : "CONNECTION",
+          "destination" : {
+            "comments" : "",
+            "groupId" : "44f474ee-cab1-30d5-87ba-27332624e423",
+            "id" : "6eb10b71-8d1e-39b4-93f6-dc32cab36bcd",
+            "instanceIdentifier" : "a4acb841-018d-1000-0000-0000752a672a",
+            "name" : "ControlRate TPCC Throttle Terraform",
+            "type" : "PROCESSOR"
+          },
+          "flowFileExpiration" : "0 sec",
+          "groupIdentifier" : "44f474ee-cab1-30d5-87ba-27332624e423",
+          "identifier" : "d1619f91-cf34-3f27-8640-228ef2417e5b",
+          "instanceIdentifier" : "6bb5c8d3-26b8-3b82-ad3c-f245c1f0e577",
+          "labelIndex" : 0,
+          "loadBalanceCompression" : "DO_NOT_COMPRESS",
+          "loadBalanceStrategy" : "DO_NOT_LOAD_BALANCE",
+          "name" : "",
+          "partitioningAttribute" : "",
+          "prioritizers" : [ ],
+          "selectedRelationships" : [ "" ],
+          "source" : {
+            "comments" : "",
+            "groupId" : "44f474ee-cab1-30d5-87ba-27332624e423",
+            "id" : "e97a053f-a246-3e95-b80a-e5807076fd49",
+            "instanceIdentifier" : "1267f98c-4dcf-3a37-83a1-8240d4a81195",
+            "name" : "initializeInfrastructure",
+            "type" : "INPUT_PORT"
+          },
+          "zIndex" : 0
+        }, {
+          "backPressureDataSizeThreshold" : "1 GB",
+          "backPressureObjectThreshold" : 10000,
+          "bends" : [ ],
+          "componentType" : "CONNECTION",
+          "destination" : {
+            "comments" : "",
+            "groupId" : "44f474ee-cab1-30d5-87ba-27332624e423",
+            "id" : "c1f63d83-6a0d-3eaa-af79-f79c45756621",
+            "instanceIdentifier" : "d9cf26a7-866b-3a8b-ba3b-78940617151d",
+            "name" : "infrastructureComplete",
+            "type" : "OUTPUT_PORT"
+          },
+          "flowFileExpiration" : "0 sec",
+          "groupIdentifier" : "44f474ee-cab1-30d5-87ba-27332624e423",
+          "identifier" : "5a45110d-1b4c-320e-86b4-063bea41b14e",
+          "instanceIdentifier" : "73189791-3191-3474-ad20-d940e795a75c",
+          "labelIndex" : 1,
+          "loadBalanceCompression" : "DO_NOT_COMPRESS",
+          "loadBalanceStrategy" : "DO_NOT_LOAD_BALANCE",
+          "name" : "",
+          "partitioningAttribute" : "",
+          "prioritizers" : [ ],
+          "selectedRelationships" : [ "success" ],
+          "source" : {
+            "comments" : "",
+            "groupId" : "44f474ee-cab1-30d5-87ba-27332624e423",
+            "id" : "8d9cf546-ca61-383d-a56c-6c833cf8dd75",
+            "instanceIdentifier" : "8d0692f3-e54f-3063-9c82-30c358ed8191",
+            "name" : "JoltTransformJSON TPCC Database Address",
+            "type" : "PROCESSOR"
+          },
+          "zIndex" : 0
+        }, {
+          "backPressureDataSizeThreshold" : "1 GB",
+          "backPressureObjectThreshold" : 10000,
+          "bends" : [ ],
+          "componentType" : "CONNECTION",
+          "destination" : {
+            "comments" : "",
+            "groupId" : "44f474ee-cab1-30d5-87ba-27332624e423",
+            "id" : "285541d2-07f8-38ae-a5fe-f6572da9babd",
+            "instanceIdentifier" : "4bf15ce1-6a9d-358b-9847-66bf5ff56af4",
+            "name" : "ExecuteStreamCommand Deploy Terraform TPCC Resources",
+            "type" : "PROCESSOR"
+          },
+          "flowFileExpiration" : "0 sec",
+          "groupIdentifier" : "44f474ee-cab1-30d5-87ba-27332624e423",
+          "identifier" : "9004849e-1484-3710-8a88-5720fc43bc28",
+          "instanceIdentifier" : "a4b87ec6-018d-1000-ffff-ffff93000021",
+          "labelIndex" : 1,
+          "loadBalanceCompression" : "DO_NOT_COMPRESS",
+          "loadBalanceStrategy" : "DO_NOT_LOAD_BALANCE",
+          "name" : "",
+          "partitioningAttribute" : "",
+          "prioritizers" : [ ],
+          "selectedRelationships" : [ "success" ],
+          "source" : {
+            "comments" : "",
+            "groupId" : "44f474ee-cab1-30d5-87ba-27332624e423",
+            "id" : "6eb10b71-8d1e-39b4-93f6-dc32cab36bcd",
+            "instanceIdentifier" : "a4acb841-018d-1000-0000-0000752a672a",
+            "name" : "ControlRate TPCC Throttle Terraform",
+            "type" : "PROCESSOR"
+          },
+          "zIndex" : 0
+        }, {
+          "backPressureDataSizeThreshold" : "1 GB",
+          "backPressureObjectThreshold" : 10000,
+          "bends" : [ ],
+          "componentType" : "CONNECTION",
+          "destination" : {
+            "comments" : "",
+            "groupId" : "44f474ee-cab1-30d5-87ba-27332624e423",
+            "id" : "2b842468-51bb-34af-adee-609d319e75b6",
+            "instanceIdentifier" : "2fc7257e-0fb1-3de4-9f2d-c749634d07dd",
+            "name" : "ExecuteStreamCommand Read Terraform TPCC Output",
+            "type" : "PROCESSOR"
+          },
+          "flowFileExpiration" : "0 sec",
+          "groupIdentifier" : "44f474ee-cab1-30d5-87ba-27332624e423",
+          "identifier" : "20c64839-436f-39b0-b8a9-237339b04b5a",
+          "instanceIdentifier" : "f2304019-948e-1dd8-ffff-ffffe572537f",
+          "labelIndex" : 1,
+          "loadBalanceCompression" : "DO_NOT_COMPRESS",
+          "loadBalanceStrategy" : "DO_NOT_LOAD_BALANCE",
+          "name" : "",
+          "partitioningAttribute" : "",
+          "prioritizers" : [ ],
+          "selectedRelationships" : [ "unmatched" ],
+          "source" : {
+            "comments" : "",
+            "groupId" : "44f474ee-cab1-30d5-87ba-27332624e423",
+            "id" : "8508fafa-e2a2-3377-babe-1e9c0fa6f226",
+            "instanceIdentifier" : "90f03527-c3f6-1a9b-b72e-9f259b35e07a",
+            "name" : "RouteOnContent",
+            "type" : "PROCESSOR"
+          },
+          "zIndex" : 0
+        }, {
+          "backPressureDataSizeThreshold" : "1 GB",
+          "backPressureObjectThreshold" : 10000,
+          "bends" : [ ],
+          "componentType" : "CONNECTION",
+          "destination" : {
+            "comments" : "",
+            "groupId" : "44f474ee-cab1-30d5-87ba-27332624e423",
+            "id" : "65464ca6-62d4-39a8-8690-f10f18b39caa",
+            "instanceIdentifier" : "9a03855b-4975-3a2b-92fc-127e9701e6a0",
+            "name" : "ExecuteStreamCommand Add TPCC Server for Monitoring",
+            "type" : "PROCESSOR"
+          },
+          "flowFileExpiration" : "0 sec",
+          "groupIdentifier" : "44f474ee-cab1-30d5-87ba-27332624e423",
+          "identifier" : "fed2ef82-48c5-3439-a68a-322541a979ea",
+          "instanceIdentifier" : "76be2a3e-018a-1000-0000-000010dc4be6",
+          "labelIndex" : 1,
+          "loadBalanceCompression" : "DO_NOT_COMPRESS",
+          "loadBalanceStrategy" : "DO_NOT_LOAD_BALANCE",
+          "name" : "",
+          "partitioningAttribute" : "",
+          "prioritizers" : [ ],
+          "selectedRelationships" : [ "success" ],
+          "source" : {
+            "comments" : "",
+            "groupId" : "44f474ee-cab1-30d5-87ba-27332624e423",
+            "id" : "739a0e9a-ce5b-3e35-a1c0-1fcf2fb8496e",
+            "instanceIdentifier" : "03ae3440-be53-1aec-a055-2146e007eb8f",
+            "name" : "ExecuteScript TPCC Join Database Addresses",
+            "type" : "PROCESSOR"
+          },
+          "zIndex" : 0
+        }, {
+          "backPressureDataSizeThreshold" : "1 GB",
+          "backPressureObjectThreshold" : 10000,
+          "bends" : [ ],
+          "componentType" : "CONNECTION",
+          "destination" : {
+            "comments" : "",
+            "groupId" : "44f474ee-cab1-30d5-87ba-27332624e423",
+            "id" : "64a4a329-9f1e-3e82-8178-376d4c2ca789",
+            "instanceIdentifier" : "5f633dcc-9f62-1ca6-b0c9-23f30a32a191",
+            "name" : "ExecuteStreamCommand TPCC Restart Monitoring",
+            "type" : "PROCESSOR"
+          },
+          "flowFileExpiration" : "0 sec",
+          "groupIdentifier" : "44f474ee-cab1-30d5-87ba-27332624e423",
+          "identifier" : "31155103-86f4-36c3-bbe9-06cc4d1f0976",
+          "instanceIdentifier" : "76befc3a-018a-1000-0000-000008e4e3a8",
+          "labelIndex" : 1,
+          "loadBalanceCompression" : "DO_NOT_COMPRESS",
+          "loadBalanceStrategy" : "DO_NOT_LOAD_BALANCE",
+          "name" : "",
+          "partitioningAttribute" : "",
+          "prioritizers" : [ ],
+          "selectedRelationships" : [ "output stream" ],
+          "source" : {
+            "comments" : "",
+            "groupId" : "44f474ee-cab1-30d5-87ba-27332624e423",
+            "id" : "65464ca6-62d4-39a8-8690-f10f18b39caa",
+            "instanceIdentifier" : "9a03855b-4975-3a2b-92fc-127e9701e6a0",
+            "name" : "ExecuteStreamCommand Add TPCC Server for Monitoring",
+            "type" : "PROCESSOR"
+          },
+          "zIndex" : 0
+        }, {
+          "backPressureDataSizeThreshold" : "1 GB",
+          "backPressureObjectThreshold" : 10000,
+          "bends" : [ ],
+          "componentType" : "CONNECTION",
+          "destination" : {
+            "comments" : "",
+            "groupId" : "44f474ee-cab1-30d5-87ba-27332624e423",
+            "id" : "739a0e9a-ce5b-3e35-a1c0-1fcf2fb8496e",
+            "instanceIdentifier" : "03ae3440-be53-1aec-a055-2146e007eb8f",
+            "name" : "ExecuteScript TPCC Join Database Addresses",
+            "type" : "PROCESSOR"
+          },
+          "flowFileExpiration" : "0 sec",
+          "groupIdentifier" : "44f474ee-cab1-30d5-87ba-27332624e423",
+          "identifier" : "4dd6a410-20ab-3d6f-99e7-dffd8780fb14",
+          "instanceIdentifier" : "52103409-028b-3b11-8175-de94a2f387fc",
+          "labelIndex" : 1,
+          "loadBalanceCompression" : "DO_NOT_COMPRESS",
+          "loadBalanceStrategy" : "DO_NOT_LOAD_BALANCE",
+          "name" : "",
+          "partitioningAttribute" : "",
+          "prioritizers" : [ ],
+          "selectedRelationships" : [ "success" ],
+          "source" : {
+            "comments" : "",
+            "groupId" : "44f474ee-cab1-30d5-87ba-27332624e423",
+            "id" : "8d9cf546-ca61-383d-a56c-6c833cf8dd75",
+            "instanceIdentifier" : "8d0692f3-e54f-3063-9c82-30c358ed8191",
+            "name" : "JoltTransformJSON TPCC Database Address",
+            "type" : "PROCESSOR"
+          },
+          "zIndex" : 0
+        }, {
+          "backPressureDataSizeThreshold" : "1 GB",
+          "backPressureObjectThreshold" : 10000,
+          "bends" : [ ],
+          "componentType" : "CONNECTION",
+          "destination" : {
+            "comments" : "",
+            "groupId" : "44f474ee-cab1-30d5-87ba-27332624e423",
+            "id" : "8508fafa-e2a2-3377-babe-1e9c0fa6f226",
+            "instanceIdentifier" : "90f03527-c3f6-1a9b-b72e-9f259b35e07a",
+            "name" : "RouteOnContent",
+            "type" : "PROCESSOR"
+          },
+          "flowFileExpiration" : "0 sec",
+          "groupIdentifier" : "44f474ee-cab1-30d5-87ba-27332624e423",
+          "identifier" : "2431c659-3a02-3436-816d-0ed54d6708b7",
+          "instanceIdentifier" : "f2303ff3-948e-1dd8-bd0b-16b33b991818",
+          "labelIndex" : 1,
+          "loadBalanceCompression" : "DO_NOT_COMPRESS",
+          "loadBalanceStrategy" : "DO_NOT_LOAD_BALANCE",
+          "name" : "",
+          "partitioningAttribute" : "",
+          "prioritizers" : [ ],
+          "selectedRelationships" : [ "output stream" ],
+          "source" : {
+            "comments" : "",
+            "groupId" : "44f474ee-cab1-30d5-87ba-27332624e423",
+            "id" : "87af713a-e0a7-3830-99f7-8d230fecfc41",
+            "instanceIdentifier" : "9ef639a5-9588-1610-b67f-690c6b9ba1af",
+            "name" : "ExecuteStreamCommand Count Terraform TPCC Instances",
+            "type" : "PROCESSOR"
+          },
+          "zIndex" : 0
+        }, {
+          "backPressureDataSizeThreshold" : "1 GB",
+          "backPressureObjectThreshold" : 10000,
+          "bends" : [ ],
+          "componentType" : "CONNECTION",
+          "destination" : {
+            "comments" : "",
+            "groupId" : "44f474ee-cab1-30d5-87ba-27332624e423",
+            "id" : "87af713a-e0a7-3830-99f7-8d230fecfc41",
+            "instanceIdentifier" : "9ef639a5-9588-1610-b67f-690c6b9ba1af",
+            "name" : "ExecuteStreamCommand Count Terraform TPCC Instances",
+            "type" : "PROCESSOR"
+          },
+          "flowFileExpiration" : "0 sec",
+          "groupIdentifier" : "44f474ee-cab1-30d5-87ba-27332624e423",
+          "identifier" : "abbe5121-599c-334b-8081-abb67a765daa",
+          "instanceIdentifier" : "3263267c-8f07-3945-bfc4-3f07286505be",
+          "labelIndex" : 1,
+          "loadBalanceCompression" : "DO_NOT_COMPRESS",
+          "loadBalanceStrategy" : "DO_NOT_LOAD_BALANCE",
+          "name" : "",
+          "partitioningAttribute" : "",
+          "prioritizers" : [ ],
+          "selectedRelationships" : [ "output stream" ],
+          "source" : {
+            "comments" : "",
+            "groupId" : "44f474ee-cab1-30d5-87ba-27332624e423",
+            "id" : "285541d2-07f8-38ae-a5fe-f6572da9babd",
+            "instanceIdentifier" : "4bf15ce1-6a9d-358b-9847-66bf5ff56af4",
+            "name" : "ExecuteStreamCommand Deploy Terraform TPCC Resources",
+            "type" : "PROCESSOR"
+          },
+          "zIndex" : 0
+        }, {
+          "backPressureDataSizeThreshold" : "1 GB",
+          "backPressureObjectThreshold" : 10000,
+          "bends" : [ {
+            "x" : 40.0,
+            "y" : -56.0
+          } ],
+          "componentType" : "CONNECTION",
+          "destination" : {
+            "comments" : "",
+            "groupId" : "44f474ee-cab1-30d5-87ba-27332624e423",
+            "id" : "285541d2-07f8-38ae-a5fe-f6572da9babd",
+            "instanceIdentifier" : "4bf15ce1-6a9d-358b-9847-66bf5ff56af4",
+            "name" : "ExecuteStreamCommand Deploy Terraform TPCC Resources",
+            "type" : "PROCESSOR"
+          },
+          "flowFileExpiration" : "0 sec",
+          "groupIdentifier" : "44f474ee-cab1-30d5-87ba-27332624e423",
+          "identifier" : "2e227666-2568-3b31-b18e-49a7a6079c44",
+          "instanceIdentifier" : "eea5e854-018b-1000-ffff-ffffa3190a39",
+          "labelIndex" : 0,
+          "loadBalanceCompression" : "DO_NOT_COMPRESS",
+          "loadBalanceStrategy" : "DO_NOT_LOAD_BALANCE",
+          "name" : "",
+          "partitioningAttribute" : "",
+          "prioritizers" : [ ],
+          "selectedRelationships" : [ "output stream" ],
+          "source" : {
+            "comments" : "",
+            "groupId" : "44f474ee-cab1-30d5-87ba-27332624e423",
+            "id" : "d7b97df8-1d2c-33d8-87f2-b677e3fd63af",
+            "instanceIdentifier" : "cd423453-a729-1a59-8a09-9710f0c54fc5",
+            "name" : "ExecuteStreamCommand Wait to Retry TPCC Terraform",
+            "type" : "PROCESSOR"
+          },
+          "zIndex" : 0
+        }, {
+          "backPressureDataSizeThreshold" : "1 GB",
+          "backPressureObjectThreshold" : 10000,
+          "bends" : [ {
+            "x" : 40.0,
+            "y" : 376.0
+          } ],
+          "componentType" : "CONNECTION",
+          "destination" : {
+            "comments" : "",
+            "groupId" : "44f474ee-cab1-30d5-87ba-27332624e423",
+            "id" : "30bec924-da23-3031-b16c-0ca52873ff0e",
+            "instanceIdentifier" : "5b0f384a-bf7c-1cbf-8c4e-b6297b50b1f1",
+            "name" : "ExecuteStreamCommand Destroy Terraform TPCC Resources",
+            "type" : "PROCESSOR"
+          },
+          "flowFileExpiration" : "0 sec",
+          "groupIdentifier" : "44f474ee-cab1-30d5-87ba-27332624e423",
+          "identifier" : "1888b24d-44f6-3328-b72a-8f221cf4a47a",
+          "instanceIdentifier" : "eea5aaea-018b-1000-ffff-fffff15c0c57",
+          "labelIndex" : 0,
+          "loadBalanceCompression" : "DO_NOT_COMPRESS",
+          "loadBalanceStrategy" : "DO_NOT_LOAD_BALANCE",
+          "name" : "",
+          "partitioningAttribute" : "",
+          "prioritizers" : [ ],
+          "selectedRelationships" : [ "all servers down" ],
+          "source" : {
+            "comments" : "",
+            "groupId" : "44f474ee-cab1-30d5-87ba-27332624e423",
+            "id" : "8508fafa-e2a2-3377-babe-1e9c0fa6f226",
+            "instanceIdentifier" : "90f03527-c3f6-1a9b-b72e-9f259b35e07a",
+            "name" : "RouteOnContent",
+            "type" : "PROCESSOR"
+          },
+          "zIndex" : 0
+        } ],
+        "controllerServices" : [ ],
+        "defaultBackPressureDataSizeThreshold" : "1 GB",
+        "defaultBackPressureObjectThreshold" : 10000,
+        "defaultFlowFileExpiration" : "0 sec",
+        "flowFileConcurrency" : "UNBOUNDED",
+        "flowFileOutboundPolicy" : "STREAM_WHEN_AVAILABLE",
+        "funnels" : [ ],
+        "identifier" : "44f474ee-cab1-30d5-87ba-27332624e423",
+        "inputPorts" : [ {
+          "allowRemoteAccess" : false,
+          "comments" : "",
+          "componentType" : "INPUT_PORT",
+          "concurrentlySchedulableTaskCount" : 1,
+          "groupIdentifier" : "44f474ee-cab1-30d5-87ba-27332624e423",
+          "identifier" : "e97a053f-a246-3e95-b80a-e5807076fd49",
+          "instanceIdentifier" : "1267f98c-4dcf-3a37-83a1-8240d4a81195",
+          "name" : "initializeInfrastructure",
+          "position" : {
+            "x" : 440.0,
+            "y" : -496.0
+          },
+          "scheduledState" : "ENABLED",
+          "type" : "INPUT_PORT"
+        } ],
+        "instanceIdentifier" : "4f1ad50d-2424-328e-9d8c-5124db80c336",
+        "labels" : [ ],
+        "name" : "Standup TPCC Infrastructure",
+        "outputPorts" : [ {
+          "allowRemoteAccess" : false,
+          "comments" : "",
+          "componentType" : "OUTPUT_PORT",
+          "concurrentlySchedulableTaskCount" : 1,
+          "groupIdentifier" : "44f474ee-cab1-30d5-87ba-27332624e423",
+          "identifier" : "c1f63d83-6a0d-3eaa-af79-f79c45756621",
+          "instanceIdentifier" : "d9cf26a7-866b-3a8b-ba3b-78940617151d",
+          "name" : "infrastructureComplete",
+          "position" : {
+            "x" : 440.0,
+            "y" : 960.0
+          },
+          "scheduledState" : "ENABLED",
+          "type" : "OUTPUT_PORT"
+        } ],
+        "position" : {
+          "x" : -432.0,
+          "y" : 544.0
+        },
+        "processGroups" : [ ],
+        "processors" : [ {
+          "autoTerminatedRelationships" : [ "original", "nonzero status" ],
+          "backoffMechanism" : "PENALIZE_FLOWFILE",
+          "bulletinLevel" : "WARN",
+          "bundle" : {
+            "artifact" : "nifi-standard-nar",
+            "group" : "org.apache.nifi",
+            "version" : "1.22.0"
+          },
+          "comments" : "",
+          "componentType" : "PROCESSOR",
+          "concurrentlySchedulableTaskCount" : 16,
+          "executionNode" : "ALL",
+          "groupIdentifier" : "44f474ee-cab1-30d5-87ba-27332624e423",
+          "identifier" : "30bec924-da23-3031-b16c-0ca52873ff0e",
+          "instanceIdentifier" : "5b0f384a-bf7c-1cbf-8c4e-b6297b50b1f1",
+          "maxBackoffPeriod" : "1 min",
+          "name" : "ExecuteStreamCommand Destroy Terraform TPCC Resources",
+          "penaltyDuration" : "30 sec",
+          "position" : {
+            "x" : -136.0,
+            "y" : 200.0
+          },
+          "properties" : {
+            "argumentsStrategy" : "Command Arguments Property",
+            "Max Attribute Length" : "256",
+            "Command Path" : "ssh",
+            "Argument Delimiter" : ";",
+            "Ignore STDIN" : "false",
+            "Command Arguments" : "-t;-o;StrictHostKeyChecking=no;${hostUsername}@${hostMachine};${hostScripts}/terraform/destroy.sh ${testProvider} ${terraformPath} ${terraformResource} ${terraformResourceName} '${testInstances}' ${testScale} ${terraformKeyName} ${terraformKeyUser}"
+          },
+          "propertyDescriptors" : {
+            "argumentsStrategy" : {
+              "displayName" : "Command Arguments Strategy",
+              "identifiesControllerService" : false,
+              "name" : "argumentsStrategy",
+              "sensitive" : false
+            },
+            "Max Attribute Length" : {
+              "displayName" : "Max Attribute Length",
+              "identifiesControllerService" : false,
+              "name" : "Max Attribute Length",
+              "sensitive" : false
+            },
+            "Working Directory" : {
+              "displayName" : "Working Directory",
+              "identifiesControllerService" : false,
+              "name" : "Working Directory",
+              "sensitive" : false
+            },
+            "Command Path" : {
+              "displayName" : "Command Path",
+              "identifiesControllerService" : false,
+              "name" : "Command Path",
+              "sensitive" : false
+            },
+            "Output Destination Attribute" : {
+              "displayName" : "Output Destination Attribute",
+              "identifiesControllerService" : false,
+              "name" : "Output Destination Attribute",
+              "sensitive" : false
+            },
+            "Argument Delimiter" : {
+              "displayName" : "Argument Delimiter",
+              "identifiesControllerService" : false,
+              "name" : "Argument Delimiter",
+              "sensitive" : false
+            },
+            "Ignore STDIN" : {
+              "displayName" : "Ignore STDIN",
+              "identifiesControllerService" : false,
+              "name" : "Ignore STDIN",
+              "sensitive" : false
+            },
+            "Command Arguments" : {
+              "displayName" : "Command Arguments",
+              "identifiesControllerService" : false,
+              "name" : "Command Arguments",
+              "sensitive" : false
+            }
+          },
+          "retriedRelationships" : [ "nonzero status" ],
+          "retryCount" : 10000,
+          "runDurationMillis" : 0,
+          "scheduledState" : "ENABLED",
+          "schedulingPeriod" : "0 sec",
+          "schedulingStrategy" : "TIMER_DRIVEN",
+          "style" : { },
+          "type" : "org.apache.nifi.processors.standard.ExecuteStreamCommand",
+          "yieldDuration" : "1 sec"
+        }, {
+          "autoTerminatedRelationships" : [ "original", "nonzero status" ],
+          "backoffMechanism" : "PENALIZE_FLOWFILE",
+          "bulletinLevel" : "WARN",
+          "bundle" : {
+            "artifact" : "nifi-standard-nar",
+            "group" : "org.apache.nifi",
+            "version" : "1.22.0"
+          },
+          "comments" : "",
+          "componentType" : "PROCESSOR",
+          "concurrentlySchedulableTaskCount" : 16,
+          "executionNode" : "ALL",
+          "groupIdentifier" : "44f474ee-cab1-30d5-87ba-27332624e423",
+          "identifier" : "d7b97df8-1d2c-33d8-87f2-b677e3fd63af",
+          "instanceIdentifier" : "cd423453-a729-1a59-8a09-9710f0c54fc5",
+          "maxBackoffPeriod" : "10 mins",
+          "name" : "ExecuteStreamCommand Wait to Retry TPCC Terraform",
+          "penaltyDuration" : "30 sec",
+          "position" : {
+            "x" : -136.0,
+            "y" : -8.0
+          },
+          "properties" : {
+            "argumentsStrategy" : "Command Arguments Property",
+            "Max Attribute Length" : "256",
+            "Command Path" : "sleep",
+            "Argument Delimiter" : ";",
+            "Ignore STDIN" : "false",
+            "Command Arguments" : "1200"
+          },
+          "propertyDescriptors" : {
+            "argumentsStrategy" : {
+              "displayName" : "Command Arguments Strategy",
+              "identifiesControllerService" : false,
+              "name" : "argumentsStrategy",
+              "sensitive" : false
+            },
+            "Max Attribute Length" : {
+              "displayName" : "Max Attribute Length",
+              "identifiesControllerService" : false,
+              "name" : "Max Attribute Length",
+              "sensitive" : false
+            },
+            "Working Directory" : {
+              "displayName" : "Working Directory",
+              "identifiesControllerService" : false,
+              "name" : "Working Directory",
+              "sensitive" : false
+            },
+            "Command Path" : {
+              "displayName" : "Command Path",
+              "identifiesControllerService" : false,
+              "name" : "Command Path",
+              "sensitive" : false
+            },
+            "Output Destination Attribute" : {
+              "displayName" : "Output Destination Attribute",
+              "identifiesControllerService" : false,
+              "name" : "Output Destination Attribute",
+              "sensitive" : false
+            },
+            "Argument Delimiter" : {
+              "displayName" : "Argument Delimiter",
+              "identifiesControllerService" : false,
+              "name" : "Argument Delimiter",
+              "sensitive" : false
+            },
+            "Ignore STDIN" : {
+              "displayName" : "Ignore STDIN",
+              "identifiesControllerService" : false,
+              "name" : "Ignore STDIN",
+              "sensitive" : false
+            },
+            "Command Arguments" : {
+              "displayName" : "Command Arguments",
+              "identifiesControllerService" : false,
+              "name" : "Command Arguments",
+              "sensitive" : false
+            }
+          },
+          "retriedRelationships" : [ "nonzero status" ],
+          "retryCount" : 10,
+          "runDurationMillis" : 0,
+          "scheduledState" : "ENABLED",
+          "schedulingPeriod" : "0 sec",
+          "schedulingStrategy" : "TIMER_DRIVEN",
+          "style" : { },
+          "type" : "org.apache.nifi.processors.standard.ExecuteStreamCommand",
+          "yieldDuration" : "1 sec"
+        }, {
+          "autoTerminatedRelationships" : [ "original", "nonzero status" ],
+          "backoffMechanism" : "PENALIZE_FLOWFILE",
+          "bulletinLevel" : "WARN",
+          "bundle" : {
+            "artifact" : "nifi-standard-nar",
+            "group" : "org.apache.nifi",
+            "version" : "1.22.0"
+          },
+          "comments" : "",
+          "componentType" : "PROCESSOR",
+          "concurrentlySchedulableTaskCount" : 1,
+          "executionNode" : "ALL",
+          "groupIdentifier" : "44f474ee-cab1-30d5-87ba-27332624e423",
+          "identifier" : "87af713a-e0a7-3830-99f7-8d230fecfc41",
+          "instanceIdentifier" : "9ef639a5-9588-1610-b67f-690c6b9ba1af",
+          "maxBackoffPeriod" : "10 mins",
+          "name" : "ExecuteStreamCommand Count Terraform TPCC Instances",
+          "penaltyDuration" : "30 sec",
+          "position" : {
+            "x" : 384.0,
+            "y" : 96.0
+          },
+          "properties" : {
+            "argumentsStrategy" : "Command Arguments Property",
+            "Max Attribute Length" : "256",
+            "Command Path" : "ssh",
+            "Argument Delimiter" : ";",
+            "Ignore STDIN" : "false",
+            "Command Arguments" : "-t;-o;StrictHostKeyChecking=no;${hostUsername}@${hostMachine};${hostScripts}/terraform/count.sh ${terraformComponent} ${terraformComponentName} ${terraformPath} ${terraformResource} ${terraformResourceName} '${testInstances}'"
+          },
+          "propertyDescriptors" : {
+            "argumentsStrategy" : {
+              "displayName" : "Command Arguments Strategy",
+              "identifiesControllerService" : false,
+              "name" : "argumentsStrategy",
+              "sensitive" : false
+            },
+            "Max Attribute Length" : {
+              "displayName" : "Max Attribute Length",
+              "identifiesControllerService" : false,
+              "name" : "Max Attribute Length",
+              "sensitive" : false
+            },
+            "Working Directory" : {
+              "displayName" : "Working Directory",
+              "identifiesControllerService" : false,
+              "name" : "Working Directory",
+              "sensitive" : false
+            },
+            "Command Path" : {
+              "displayName" : "Command Path",
+              "identifiesControllerService" : false,
+              "name" : "Command Path",
+              "sensitive" : false
+            },
+            "Output Destination Attribute" : {
+              "displayName" : "Output Destination Attribute",
+              "identifiesControllerService" : false,
+              "name" : "Output Destination Attribute",
+              "sensitive" : false
+            },
+            "Argument Delimiter" : {
+              "displayName" : "Argument Delimiter",
+              "identifiesControllerService" : false,
+              "name" : "Argument Delimiter",
+              "sensitive" : false
+            },
+            "Ignore STDIN" : {
+              "displayName" : "Ignore STDIN",
+              "identifiesControllerService" : false,
+              "name" : "Ignore STDIN",
+              "sensitive" : false
+            },
+            "Command Arguments" : {
+              "displayName" : "Command Arguments",
+              "identifiesControllerService" : false,
+              "name" : "Command Arguments",
+              "sensitive" : false
+            }
+          },
+          "retriedRelationships" : [ "nonzero status" ],
+          "retryCount" : 10,
+          "runDurationMillis" : 0,
+          "scheduledState" : "ENABLED",
+          "schedulingPeriod" : "0 sec",
+          "schedulingStrategy" : "TIMER_DRIVEN",
+          "style" : { },
+          "type" : "org.apache.nifi.processors.standard.ExecuteStreamCommand",
+          "yieldDuration" : "1 sec"
+        }, {
+          "autoTerminatedRelationships" : [ "output stream", "original", "nonzero status" ],
+          "backoffMechanism" : "PENALIZE_FLOWFILE",
+          "bulletinLevel" : "WARN",
+          "bundle" : {
+            "artifact" : "nifi-standard-nar",
+            "group" : "org.apache.nifi",
+            "version" : "1.22.0"
+          },
+          "comments" : "",
+          "componentType" : "PROCESSOR",
+          "concurrentlySchedulableTaskCount" : 1,
+          "executionNode" : "ALL",
+          "groupIdentifier" : "44f474ee-cab1-30d5-87ba-27332624e423",
+          "identifier" : "64a4a329-9f1e-3e82-8178-376d4c2ca789",
+          "instanceIdentifier" : "5f633dcc-9f62-1ca6-b0c9-23f30a32a191",
+          "maxBackoffPeriod" : "10 mins",
+          "name" : "ExecuteStreamCommand TPCC Restart Monitoring",
+          "penaltyDuration" : "30 sec",
+          "position" : {
+            "x" : 1032.0,
+            "y" : 312.0
+          },
+          "properties" : {
+            "argumentsStrategy" : "Command Arguments Property",
+            "Max Attribute Length" : "256",
+            "Command Path" : "ssh",
+            "Argument Delimiter" : ";",
+            "Ignore STDIN" : "false",
+            "Command Arguments" : "-t;-o;StrictHostKeyChecking=no;${hostUsername}@${hostMachine};${hostScripts}/tpcc/${testTarget}/monitor-reload.sh"
+          },
+          "propertyDescriptors" : {
+            "argumentsStrategy" : {
+              "displayName" : "Command Arguments Strategy",
+              "identifiesControllerService" : false,
+              "name" : "argumentsStrategy",
+              "sensitive" : false
+            },
+            "Max Attribute Length" : {
+              "displayName" : "Max Attribute Length",
+              "identifiesControllerService" : false,
+              "name" : "Max Attribute Length",
+              "sensitive" : false
+            },
+            "Working Directory" : {
+              "displayName" : "Working Directory",
+              "identifiesControllerService" : false,
+              "name" : "Working Directory",
+              "sensitive" : false
+            },
+            "Command Path" : {
+              "displayName" : "Command Path",
+              "identifiesControllerService" : false,
+              "name" : "Command Path",
+              "sensitive" : false
+            },
+            "Output Destination Attribute" : {
+              "displayName" : "Output Destination Attribute",
+              "identifiesControllerService" : false,
+              "name" : "Output Destination Attribute",
+              "sensitive" : false
+            },
+            "Argument Delimiter" : {
+              "displayName" : "Argument Delimiter",
+              "identifiesControllerService" : false,
+              "name" : "Argument Delimiter",
+              "sensitive" : false
+            },
+            "Ignore STDIN" : {
+              "displayName" : "Ignore STDIN",
+              "identifiesControllerService" : false,
+              "name" : "Ignore STDIN",
+              "sensitive" : false
+            },
+            "Command Arguments" : {
+              "displayName" : "Command Arguments",
+              "identifiesControllerService" : false,
+              "name" : "Command Arguments",
+              "sensitive" : false
+            }
+          },
+          "retriedRelationships" : [ "nonzero status" ],
+          "retryCount" : 10,
+          "runDurationMillis" : 0,
+          "scheduledState" : "ENABLED",
+          "schedulingPeriod" : "0 sec",
+          "schedulingStrategy" : "TIMER_DRIVEN",
+          "style" : { },
+          "type" : "org.apache.nifi.processors.standard.ExecuteStreamCommand",
+          "yieldDuration" : "1 sec"
+        }, {
+          "autoTerminatedRelationships" : [ "failure" ],
+          "backoffMechanism" : "PENALIZE_FLOWFILE",
+          "bulletinLevel" : "WARN",
+          "bundle" : {
+            "artifact" : "nifi-standard-nar",
+            "group" : "org.apache.nifi",
+            "version" : "1.22.0"
+          },
+          "comments" : "",
+          "componentType" : "PROCESSOR",
+          "concurrentlySchedulableTaskCount" : 1,
+          "executionNode" : "ALL",
+          "groupIdentifier" : "44f474ee-cab1-30d5-87ba-27332624e423",
+          "identifier" : "6eb10b71-8d1e-39b4-93f6-dc32cab36bcd",
+          "instanceIdentifier" : "a4acb841-018d-1000-0000-0000752a672a",
+          "maxBackoffPeriod" : "10 mins",
+          "name" : "ControlRate TPCC Throttle Terraform",
+          "penaltyDuration" : "30 sec",
+          "position" : {
+            "x" : 384.0,
+            "y" : -336.0
+          },
+          "properties" : {
+            "Time Duration" : "20 min",
+            "Grouping Attribute" : "terraformPath",
+            "Maximum Rate" : "1",
+            "Rate Control Criteria" : "flowfile count"
+          },
+          "propertyDescriptors" : {
+            "Maximum FlowFile Rate" : {
+              "displayName" : "Maximum FlowFile Rate",
+              "identifiesControllerService" : false,
+              "name" : "Maximum FlowFile Rate",
+              "sensitive" : false
+            },
+            "Time Duration" : {
+              "displayName" : "Time Duration",
+              "identifiesControllerService" : false,
+              "name" : "Time Duration",
+              "sensitive" : false
+            },
+            "Grouping Attribute" : {
+              "displayName" : "Grouping Attribute",
+              "identifiesControllerService" : false,
+              "name" : "Grouping Attribute",
+              "sensitive" : false
+            },
+            "Maximum Rate" : {
+              "displayName" : "Maximum Rate",
+              "identifiesControllerService" : false,
+              "name" : "Maximum Rate",
+              "sensitive" : false
+            },
+            "Rate Controlled Attribute" : {
+              "displayName" : "Rate Controlled Attribute",
+              "identifiesControllerService" : false,
+              "name" : "Rate Controlled Attribute",
+              "sensitive" : false
+            },
+            "Rate Control Criteria" : {
+              "displayName" : "Rate Control Criteria",
+              "identifiesControllerService" : false,
+              "name" : "Rate Control Criteria",
+              "sensitive" : false
+            },
+            "Maximum Data Rate" : {
+              "displayName" : "Maximum Data Rate",
+              "identifiesControllerService" : false,
+              "name" : "Maximum Data Rate",
+              "sensitive" : false
+            }
+          },
+          "retriedRelationships" : [ "failure" ],
+          "retryCount" : 10,
+          "runDurationMillis" : 0,
+          "scheduledState" : "ENABLED",
+          "schedulingPeriod" : "0 sec",
+          "schedulingStrategy" : "TIMER_DRIVEN",
+          "style" : { },
+          "type" : "org.apache.nifi.processors.standard.ControlRate",
+          "yieldDuration" : "1 sec"
+        }, {
+          "autoTerminatedRelationships" : [ "failure" ],
+          "backoffMechanism" : "PENALIZE_FLOWFILE",
+          "bulletinLevel" : "WARN",
+          "bundle" : {
+            "artifact" : "nifi-standard-nar",
+            "group" : "org.apache.nifi",
+            "version" : "1.22.0"
+          },
+          "comments" : "",
+          "componentType" : "PROCESSOR",
+          "concurrentlySchedulableTaskCount" : 1,
+          "executionNode" : "ALL",
+          "groupIdentifier" : "44f474ee-cab1-30d5-87ba-27332624e423",
+          "identifier" : "8d9cf546-ca61-383d-a56c-6c833cf8dd75",
+          "instanceIdentifier" : "8d0692f3-e54f-3063-9c82-30c358ed8191",
+          "maxBackoffPeriod" : "10 mins",
+          "name" : "JoltTransformJSON TPCC Database Address",
+          "penaltyDuration" : "30 sec",
+          "position" : {
+            "x" : 384.0,
+            "y" : 744.0
+          },
+          "properties" : {
+            "jolt-spec" : "[\n  {\n    \"operation\": \"shift\",\n    \"spec\": {\n      \"*\": {\n        \"$\": \"[#2].name\",\n        \"@.address\": \"[#2].address\",\n        \"@.workload\": \"[#2].workload\",\n        \"@.nodes\": \"[#2].nodes\",\n        \"@.cpus\": \"[#2].cpus\",\n        \"@.memory\": \"[#2].memory\",\n        \"@.concurrency\": \"[#2].concurrency\"\n      }\n    }\n  }\n]\n",
+            "jolt-transform" : "jolt-transform-chain",
+            "pretty_print" : "false",
+            "Transform Cache Size" : "1"
+          },
+          "propertyDescriptors" : {
+            "jolt-spec" : {
+              "displayName" : "Jolt Specification",
+              "identifiesControllerService" : false,
+              "name" : "jolt-spec",
+              "sensitive" : false
+            },
+            "jolt-transform" : {
+              "displayName" : "Jolt Transformation DSL",
+              "identifiesControllerService" : false,
+              "name" : "jolt-transform",
+              "sensitive" : false
+            },
+            "jolt-custom-class" : {
+              "displayName" : "Custom Transformation Class Name",
+              "identifiesControllerService" : false,
+              "name" : "jolt-custom-class",
+              "sensitive" : false
+            },
+            "jolt-custom-modules" : {
+              "displayName" : "Custom Module Directory",
+              "identifiesControllerService" : false,
+              "name" : "jolt-custom-modules",
+              "resourceDefinition" : {
+                "cardinality" : "MULTIPLE",
+                "resourceTypes" : [ "FILE", "DIRECTORY" ]
+              },
+              "sensitive" : false
+            },
+            "pretty_print" : {
+              "displayName" : "Pretty Print",
+              "identifiesControllerService" : false,
+              "name" : "pretty_print",
+              "sensitive" : false
+            },
+            "Transform Cache Size" : {
+              "displayName" : "Transform Cache Size",
+              "identifiesControllerService" : false,
+              "name" : "Transform Cache Size",
+              "sensitive" : false
+            }
+          },
+          "retriedRelationships" : [ "failure" ],
+          "retryCount" : 10,
+          "runDurationMillis" : 0,
+          "scheduledState" : "ENABLED",
+          "schedulingPeriod" : "0 sec",
+          "schedulingStrategy" : "TIMER_DRIVEN",
+          "style" : { },
+          "type" : "org.apache.nifi.processors.standard.JoltTransformJSON",
+          "yieldDuration" : "1 sec"
+        }, {
+          "autoTerminatedRelationships" : [ "original", "nonzero status" ],
+          "backoffMechanism" : "PENALIZE_FLOWFILE",
+          "bulletinLevel" : "WARN",
+          "bundle" : {
+            "artifact" : "nifi-standard-nar",
+            "group" : "org.apache.nifi",
+            "version" : "1.22.0"
+          },
+          "comments" : "",
+          "componentType" : "PROCESSOR",
+          "concurrentlySchedulableTaskCount" : 1,
+          "executionNode" : "ALL",
+          "groupIdentifier" : "44f474ee-cab1-30d5-87ba-27332624e423",
+          "identifier" : "2b842468-51bb-34af-adee-609d319e75b6",
+          "instanceIdentifier" : "2fc7257e-0fb1-3de4-9f2d-c749634d07dd",
+          "maxBackoffPeriod" : "10 mins",
+          "name" : "ExecuteStreamCommand Read Terraform TPCC Output",
+          "penaltyDuration" : "30 sec",
+          "position" : {
+            "x" : 384.0,
+            "y" : 528.0
+          },
+          "properties" : {
+            "argumentsStrategy" : "Command Arguments Property",
+            "Max Attribute Length" : "256",
+            "Command Path" : "ssh",
+            "Argument Delimiter" : ";",
+            "Ignore STDIN" : "false",
+            "Command Arguments" : "-t;-o;StrictHostKeyChecking=no;${hostUsername}@${hostMachine};${hostScripts}/terraform/output.sh ${terraformPath} '${testInstances}'"
+          },
+          "propertyDescriptors" : {
+            "argumentsStrategy" : {
+              "displayName" : "Command Arguments Strategy",
+              "identifiesControllerService" : false,
+              "name" : "argumentsStrategy",
+              "sensitive" : false
+            },
+            "Max Attribute Length" : {
+              "displayName" : "Max Attribute Length",
+              "identifiesControllerService" : false,
+              "name" : "Max Attribute Length",
+              "sensitive" : false
+            },
+            "Working Directory" : {
+              "displayName" : "Working Directory",
+              "identifiesControllerService" : false,
+              "name" : "Working Directory",
+              "sensitive" : false
+            },
+            "Command Path" : {
+              "displayName" : "Command Path",
+              "identifiesControllerService" : false,
+              "name" : "Command Path",
+              "sensitive" : false
+            },
+            "Output Destination Attribute" : {
+              "displayName" : "Output Destination Attribute",
+              "identifiesControllerService" : false,
+              "name" : "Output Destination Attribute",
+              "sensitive" : false
+            },
+            "Argument Delimiter" : {
+              "displayName" : "Argument Delimiter",
+              "identifiesControllerService" : false,
+              "name" : "Argument Delimiter",
+              "sensitive" : false
+            },
+            "Ignore STDIN" : {
+              "displayName" : "Ignore STDIN",
+              "identifiesControllerService" : false,
+              "name" : "Ignore STDIN",
+              "sensitive" : false
+            },
+            "Command Arguments" : {
+              "displayName" : "Command Arguments",
+              "identifiesControllerService" : false,
+              "name" : "Command Arguments",
+              "sensitive" : false
+            }
+          },
+          "retriedRelationships" : [ "nonzero status" ],
+          "retryCount" : 10,
+          "runDurationMillis" : 0,
+          "scheduledState" : "ENABLED",
+          "schedulingPeriod" : "0 sec",
+          "schedulingStrategy" : "TIMER_DRIVEN",
+          "style" : { },
+          "type" : "org.apache.nifi.processors.standard.ExecuteStreamCommand",
+          "yieldDuration" : "1 sec"
+        }, {
+          "autoTerminatedRelationships" : [ "failure" ],
+          "backoffMechanism" : "PENALIZE_FLOWFILE",
+          "bulletinLevel" : "WARN",
+          "bundle" : {
+            "artifact" : "nifi-scripting-nar",
+            "group" : "org.apache.nifi",
+            "version" : "1.22.0"
+          },
+          "comments" : "",
+          "componentType" : "PROCESSOR",
+          "concurrentlySchedulableTaskCount" : 1,
+          "executionNode" : "ALL",
+          "groupIdentifier" : "44f474ee-cab1-30d5-87ba-27332624e423",
+          "identifier" : "739a0e9a-ce5b-3e35-a1c0-1fcf2fb8496e",
+          "instanceIdentifier" : "03ae3440-be53-1aec-a055-2146e007eb8f",
+          "maxBackoffPeriod" : "10 mins",
+          "name" : "ExecuteScript TPCC Join Database Addresses",
+          "penaltyDuration" : "30 sec",
+          "position" : {
+            "x" : 1032.0,
+            "y" : 744.0
+          },
+          "properties" : {
+            "Script Engine" : "python",
+            "Script Body" : "from org.apache.nifi.processor.io import StreamCallback\nfrom org.apache.commons.io import IOUtils\nfrom java.nio.charset import StandardCharsets\nimport json\n\ndatabaseAddresses = None\n\nclass PyStreamCallback(StreamCallback):\n\tdef process(self, inputStream, outputStream):\n\t\tglobal databaseAddresses\n\t\ttext = IOUtils.toString(inputStream, StandardCharsets.UTF_8)\n\t\tdatabases = json.loads(text)\n\t\toutputStream.write(json.dumps(databases).encode('utf-8'))\n\t\taddressArray=[]\n\t\tfor database in databases:\n\t\t\taddressArray.extend(database['nodes'])\n\t\tdatabaseAddresses = str(','.join(addressArray))\n\nflowFile = session.get()\nif (flowFile != None):\n\ttry:\n\t\tflowFile = session.write(flowFile, PyStreamCallback())\n\t\twhile databaseAddresses == None:\n\t\t\tpass\n\t\tflowFile = session.putAttribute(flowFile, 'databaseAddresses', databaseAddresses)\n\t\tsession.transfer(flowFile, REL_SUCCESS)\n\texcept Exception as e:\n\t\tlog.error(str(e))\n\t\tsession.transfer(flowFile, REL_FAILURE)",
+            "Module Directory" : "/home/nifi/.local/lib/python3.9/site-packages"
+          },
+          "propertyDescriptors" : {
+            "Script File" : {
+              "displayName" : "Script File",
+              "identifiesControllerService" : false,
+              "name" : "Script File",
+              "resourceDefinition" : {
+                "cardinality" : "SINGLE",
+                "resourceTypes" : [ "FILE" ]
+              },
+              "sensitive" : false
+            },
+            "Script Engine" : {
+              "displayName" : "Script Engine",
+              "identifiesControllerService" : false,
+              "name" : "Script Engine",
+              "sensitive" : false
+            },
+            "Script Body" : {
+              "displayName" : "Script Body",
+              "identifiesControllerService" : false,
+              "name" : "Script Body",
+              "sensitive" : false
+            },
+            "Module Directory" : {
+              "displayName" : "Module Directory",
+              "identifiesControllerService" : false,
+              "name" : "Module Directory",
+              "resourceDefinition" : {
+                "cardinality" : "MULTIPLE",
+                "resourceTypes" : [ "FILE", "DIRECTORY" ]
+              },
+              "sensitive" : false
+            }
+          },
+          "retriedRelationships" : [ "failure" ],
+          "retryCount" : 10,
+          "runDurationMillis" : 0,
+          "scheduledState" : "ENABLED",
+          "schedulingPeriod" : "0 sec",
+          "schedulingStrategy" : "TIMER_DRIVEN",
+          "style" : { },
+          "type" : "org.apache.nifi.processors.script.ExecuteScript",
+          "yieldDuration" : "1 sec"
+        }, {
+          "autoTerminatedRelationships" : [ "original", "nonzero status" ],
+          "backoffMechanism" : "PENALIZE_FLOWFILE",
+          "bulletinLevel" : "WARN",
+          "bundle" : {
+            "artifact" : "nifi-standard-nar",
+            "group" : "org.apache.nifi",
+            "version" : "1.22.0"
+          },
+          "comments" : "",
+          "componentType" : "PROCESSOR",
+          "concurrentlySchedulableTaskCount" : 1,
+          "executionNode" : "ALL",
+          "groupIdentifier" : "44f474ee-cab1-30d5-87ba-27332624e423",
+          "identifier" : "65464ca6-62d4-39a8-8690-f10f18b39caa",
+          "instanceIdentifier" : "9a03855b-4975-3a2b-92fc-127e9701e6a0",
+          "maxBackoffPeriod" : "10 mins",
+          "name" : "ExecuteStreamCommand Add TPCC Server for Monitoring",
+          "penaltyDuration" : "30 sec",
+          "position" : {
+            "x" : 1032.0,
+            "y" : 528.0
+          },
+          "properties" : {
+            "argumentsStrategy" : "Command Arguments Property",
+            "Max Attribute Length" : "256",
+            "Command Path" : "ssh",
+            "Argument Delimiter" : ";",
+            "Ignore STDIN" : "false",
+            "Command Arguments" : "-t;-o;StrictHostKeyChecking=no;${hostUsername}@${hostMachine};${hostScripts}/tpcc/${testTarget}/monitor.sh true '${databaseAddresses}'"
+          },
+          "propertyDescriptors" : {
+            "argumentsStrategy" : {
+              "displayName" : "Command Arguments Strategy",
+              "identifiesControllerService" : false,
+              "name" : "argumentsStrategy",
+              "sensitive" : false
+            },
+            "Max Attribute Length" : {
+              "displayName" : "Max Attribute Length",
+              "identifiesControllerService" : false,
+              "name" : "Max Attribute Length",
+              "sensitive" : false
+            },
+            "Working Directory" : {
+              "displayName" : "Working Directory",
+              "identifiesControllerService" : false,
+              "name" : "Working Directory",
+              "sensitive" : false
+            },
+            "Command Path" : {
+              "displayName" : "Command Path",
+              "identifiesControllerService" : false,
+              "name" : "Command Path",
+              "sensitive" : false
+            },
+            "Output Destination Attribute" : {
+              "displayName" : "Output Destination Attribute",
+              "identifiesControllerService" : false,
+              "name" : "Output Destination Attribute",
+              "sensitive" : false
+            },
+            "Argument Delimiter" : {
+              "displayName" : "Argument Delimiter",
+              "identifiesControllerService" : false,
+              "name" : "Argument Delimiter",
+              "sensitive" : false
+            },
+            "Ignore STDIN" : {
+              "displayName" : "Ignore STDIN",
+              "identifiesControllerService" : false,
+              "name" : "Ignore STDIN",
+              "sensitive" : false
+            },
+            "Command Arguments" : {
+              "displayName" : "Command Arguments",
+              "identifiesControllerService" : false,
+              "name" : "Command Arguments",
+              "sensitive" : false
+            }
+          },
+          "retriedRelationships" : [ "nonzero status" ],
+          "retryCount" : 10,
+          "runDurationMillis" : 0,
+          "scheduledState" : "ENABLED",
+          "schedulingPeriod" : "0 sec",
+          "schedulingStrategy" : "TIMER_DRIVEN",
+          "style" : { },
+          "type" : "org.apache.nifi.processors.standard.ExecuteStreamCommand",
+          "yieldDuration" : "1 sec"
+        }, {
+          "autoTerminatedRelationships" : [ "original", "nonzero status" ],
+          "backoffMechanism" : "PENALIZE_FLOWFILE",
+          "bulletinLevel" : "WARN",
+          "bundle" : {
+            "artifact" : "nifi-standard-nar",
+            "group" : "org.apache.nifi",
+            "version" : "1.22.0"
+          },
+          "comments" : "",
+          "componentType" : "PROCESSOR",
+          "concurrentlySchedulableTaskCount" : 16,
+          "executionNode" : "ALL",
+          "groupIdentifier" : "44f474ee-cab1-30d5-87ba-27332624e423",
+          "identifier" : "285541d2-07f8-38ae-a5fe-f6572da9babd",
+          "instanceIdentifier" : "4bf15ce1-6a9d-358b-9847-66bf5ff56af4",
+          "maxBackoffPeriod" : "10 mins",
+          "name" : "ExecuteStreamCommand Deploy Terraform TPCC Resources",
+          "penaltyDuration" : "30 sec",
+          "position" : {
+            "x" : 384.0,
+            "y" : -120.0
+          },
+          "properties" : {
+            "argumentsStrategy" : "Command Arguments Property",
+            "Max Attribute Length" : "256",
+            "Command Path" : "ssh",
+            "Argument Delimiter" : ";",
+            "Ignore STDIN" : "false",
+            "Command Arguments" : "-t;-o;StrictHostKeyChecking=no;${hostUsername}@${hostMachine};${hostScripts}/terraform/apply.sh ${testProvider} ${terraformPath} ${terraformResource} ${terraformResourceName} '${testInstances}' ${testScale} ${terraformKeyName} ${terraformKeyUser}"
+          },
+          "propertyDescriptors" : {
+            "argumentsStrategy" : {
+              "displayName" : "Command Arguments Strategy",
+              "identifiesControllerService" : false,
+              "name" : "argumentsStrategy",
+              "sensitive" : false
+            },
+            "Max Attribute Length" : {
+              "displayName" : "Max Attribute Length",
+              "identifiesControllerService" : false,
+              "name" : "Max Attribute Length",
+              "sensitive" : false
+            },
+            "Working Directory" : {
+              "displayName" : "Working Directory",
+              "identifiesControllerService" : false,
+              "name" : "Working Directory",
+              "sensitive" : false
+            },
+            "Command Path" : {
+              "displayName" : "Command Path",
+              "identifiesControllerService" : false,
+              "name" : "Command Path",
+              "sensitive" : false
+            },
+            "Output Destination Attribute" : {
+              "displayName" : "Output Destination Attribute",
+              "identifiesControllerService" : false,
+              "name" : "Output Destination Attribute",
+              "sensitive" : false
+            },
+            "Argument Delimiter" : {
+              "displayName" : "Argument Delimiter",
+              "identifiesControllerService" : false,
+              "name" : "Argument Delimiter",
+              "sensitive" : false
+            },
+            "Ignore STDIN" : {
+              "displayName" : "Ignore STDIN",
+              "identifiesControllerService" : false,
+              "name" : "Ignore STDIN",
+              "sensitive" : false
+            },
+            "Command Arguments" : {
+              "displayName" : "Command Arguments",
+              "identifiesControllerService" : false,
+              "name" : "Command Arguments",
+              "sensitive" : false
+            }
+          },
+          "retriedRelationships" : [ "nonzero status" ],
+          "retryCount" : 10,
+          "runDurationMillis" : 0,
+          "scheduledState" : "ENABLED",
+          "schedulingPeriod" : "0 sec",
+          "schedulingStrategy" : "TIMER_DRIVEN",
+          "style" : { },
+          "type" : "org.apache.nifi.processors.standard.ExecuteStreamCommand",
+          "yieldDuration" : "1 sec"
+        }, {
+          "autoTerminatedRelationships" : [ ],
+          "backoffMechanism" : "PENALIZE_FLOWFILE",
+          "bulletinLevel" : "WARN",
+          "bundle" : {
+            "artifact" : "nifi-standard-nar",
+            "group" : "org.apache.nifi",
+            "version" : "1.22.0"
+          },
+          "comments" : "",
+          "componentType" : "PROCESSOR",
+          "concurrentlySchedulableTaskCount" : 1,
+          "executionNode" : "ALL",
+          "groupIdentifier" : "44f474ee-cab1-30d5-87ba-27332624e423",
+          "identifier" : "8508fafa-e2a2-3377-babe-1e9c0fa6f226",
+          "instanceIdentifier" : "90f03527-c3f6-1a9b-b72e-9f259b35e07a",
+          "maxBackoffPeriod" : "10 mins",
+          "name" : "RouteOnContent",
+          "penaltyDuration" : "30 sec",
+          "position" : {
+            "x" : 384.0,
+            "y" : 312.0
+          },
+          "properties" : {
+            "Content Buffer Size" : "1 MB",
+            "Match Requirement" : "content must match exactly",
+            "all servers down" : "0\\s*",
+            "Character Set" : "UTF-8"
+          },
+          "propertyDescriptors" : {
+            "Content Buffer Size" : {
+              "displayName" : "Content Buffer Size",
+              "identifiesControllerService" : false,
+              "name" : "Content Buffer Size",
+              "sensitive" : false
+            },
+            "Match Requirement" : {
+              "displayName" : "Match Requirement",
+              "identifiesControllerService" : false,
+              "name" : "Match Requirement",
+              "sensitive" : false
+            },
+            "all servers down" : {
+              "displayName" : "all servers down",
+              "identifiesControllerService" : false,
+              "name" : "all servers down",
+              "sensitive" : false
+            },
+            "Character Set" : {
+              "displayName" : "Character Set",
+              "identifiesControllerService" : false,
+              "name" : "Character Set",
+              "sensitive" : false
+            }
+          },
+          "retriedRelationships" : [ ],
+          "retryCount" : 10,
+          "runDurationMillis" : 0,
+          "scheduledState" : "ENABLED",
+          "schedulingPeriod" : "0 sec",
+          "schedulingStrategy" : "TIMER_DRIVEN",
+          "style" : { },
+          "type" : "org.apache.nifi.processors.standard.RouteOnContent",
+          "yieldDuration" : "1 sec"
+        } ],
+        "remoteProcessGroups" : [ ],
+        "variables" : { }
+      },
+      "flowEncodingVersion" : "1.0",
+      "parameterContexts" : { },
+      "parameterProviders" : { }
+    }
+  }
+}
