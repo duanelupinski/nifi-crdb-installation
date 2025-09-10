@@ -1,36 +1,36 @@
 #!/usr/bin/env bash
 # SSH helpers with dry-run support.
 
-# ni::ssh(){
-#   local r="$1"; shift; local c="$*"
-#   if [ "${DRY_RUN:-false}" = true ]; then
-#     echo "[dry-run][${r}] ${c}"
-#   else
-#     ssh -o BatchMode=yes -o StrictHostKeyChecking=no -t "$r" "$c"
-#   fi
-# }
 
 ni::ssh() {
   local r="$1"; shift
   if [ "${DRY_RUN:-false}" = true ]; then
-    # Show the exact argv that would be sent; consume stdin so heredocs don't break.
     printf '[dry-run][%s]' "$r"; printf ' %q' "$@"; printf '\n'
     cat >/dev/null
     return 0
   fi
-  # -T disables TTY so the heredoc is piped to remote stdin cleanly
   ssh -o BatchMode=yes -o StrictHostKeyChecking=no -T "$r" "$@"
 }
 
-# ni::ssh_sudo(){
-#   local r="$1"; shift
-#   ni::ssh "$r" "sudo -H bash -lc $'set -o errexit -o nounset -o pipefail\n$*'"
-# }
-
 ni::ssh_sudo() {
   local r="$1"; shift
-  # Pass argv as-is; caller can put `env VAR=… bash -s -- args…`
-  ni::ssh "$r" sudo -H "$@"
+  if [ $# -eq 0 ]; then
+    ni::ssh "$r" sudo -H bash -l
+    return
+  fi
+
+  # If the argv contains a shell (e.g., `env ... -- bash -s`, or direct `bash -s`), pass through.
+  case " $* " in
+    *" bash "*|*" /bin/bash "*|*" sh "*|*" /bin/sh "*) 
+      ni::ssh "$r" sudo -H "$@"
+      ;;
+    *)
+      # Otherwise run a root login shell and execute the whole line.
+      # (Joins args; good for simple commands/&& chains, but not for heredocs.)
+      local cmd; printf -v cmd '%s ' "$@"
+      ni::ssh "$r" sudo -n -H bash -lc "$cmd"
+      ;;
+  esac
 }
 
 # Heredoc over SSH (no PTY) — preserves newlines & "$@" correctly; fixes PTY warning
@@ -38,9 +38,9 @@ ni::ssh_sudo_stdin(){
   local r="$1"; shift
   local script; script="$(cat)"
   if [ "${DRY_RUN:-false}" = true ]; then
-    echo "[dry-run][${r}] sudo -H bash -s -- $* <<'RSH'"
+    echo "[dry-run][${r}] sudo -H bash -s -- $* <<'BASH'"
     printf '%s\n' "$script"
-    echo "RSH"
+    echo "BASH"
     return 0
   fi
   local q=(); for a in "$@"; do q+=("$(printf "%q" "$a")"); done

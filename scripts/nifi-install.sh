@@ -23,6 +23,7 @@ REQUIRED_LIBS=(
   helpers/ni_postgres.sh
   helpers/ni_registry.sh
   helpers/ni_ssh.sh
+  helpers/ni_tunnel.sh
   helpers/ni_zk.sh
 )
 for f in "${REQUIRED_LIBS[@]}"; do
@@ -278,10 +279,14 @@ ensure_pubkey_on_remote(){
 
 apt_update_upgrade(){
   local remote="$1"
-  ni::ssh_sudo "$remote" $'DEBIAN_FRONTEND=noninteractive apt-get update -y && \
-DEBIAN_FRONTEND=noninteractive apt-get full-upgrade -y && \
-DEBIAN_FRONTEND=noninteractive apt-get autoremove -y && \
-DEBIAN_FRONTEND=noninteractive apt-get clean'
+  ni::ssh_sudo "$remote" bash -s <<'BASH'
+set -o errexit -o nounset -o pipefail
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -y
+apt-get -y full-upgrade
+apt-get -y autoremove
+apt-get clean
+BASH
 }
 
 # --- Operation: new-cluster ------------------------------------------------
@@ -365,9 +370,9 @@ ni::op::new_cluster(){
     ni::ufw_defaults "${remote}"
     # NiFi nodes: open NiFi UI port (secure => 9443, else 8080)
     if [ "${secure}" = true ]; then
-      ni::ssh_sudo "${remote}" $'ufw allow 9443'
+      ni::ssh "${remote}" "sudo ufw allow 9443"
     else
-      ni::ssh_sudo "${remote}" $'ufw allow 8080'
+      ni::ssh "${remote}" "sudo ufw allow 8080"
     fi
   done
 
@@ -618,6 +623,8 @@ ni::op::new_cluster(){
     ni::registry::enable_start "${remote}"
   fi
 
+  ni::tunnel::prepare_local_access "${secure}" "${installer}" "${NIFI_NODES[0]}" "${registry_host}"
+
   if [ "${secure}" = true ]; then
     export NIFI_USER=${NIFI_USER}
     export NIFI_NODES=${NIFI_NODES}
@@ -635,6 +642,8 @@ ni::op::new_cluster(){
     export NIFI_NODES=${NIFI_NODES}
     export REGISTRY_HOST=${registry_host}
     ni::nifi::ensure_registry_client
+    remote="${installer}@$(ni::resolve_host "${registry_host}")"
+    ni::registry::enable_start "${remote}"
     # reg::auth::bootstrap "NiFi Flows"
   fi
 

@@ -71,7 +71,7 @@ ni::auth::get_policy_by_resource() {
   local urls=(
     "${api}/policies/${action}/${enc1}"
     "${api}/policies/${action}/${enc2}"
-    "${api}/policies/${action}/${resource}"   # literal: //flow (resource="/flow")
+    "${api}/policies/${action}/${resource}"
   )
 
   local u r
@@ -115,15 +115,25 @@ ni::auth::ensure_policy() {
   if [[ -n "$pid" ]]; then echo "$pid"; return 0; fi
 
   # 2) create (409 is fine)
-  ni::api::curl_nifi -X POST "${api}/policies" -d @- <<JSON >/dev/null || true
-{"revision":{"version":0},"component":{"action":"$action","resource":/"$resource"}}
-JSON
+  r="$(ni::api::curl_nifi -X POST "${api}/policies" -d "$(jq -n --arg action "$action" --arg resource "/$resource" '{"revision": { "version": 0 }, "component": {"action": $action, "resource": $resource, "users":[], "userGroups":[]}}')")" || true
 
   # 3) re-GET via fallback
-  r=$(ni::auth::get_policy_by_resource "$action" "$resource") || true
-  pid=$(jq -r '.component.id? // empty' <<<"$r")
-  [[ -n "$pid" ]] || { echo "ERR: could not ensure policy $action $resource" >&2; return 1; }
-  echo "$pid"
+  attempts=5
+  delay=1
+  for ((i=1; i<=attempts; i++)); do
+    r=$(ni::auth::get_policy_by_resource "$action" "$resource") || true
+    pid=$(jq -r '.component.id? // empty' <<<"$r")
+    if [ -n "$pid" ]; then
+      echo "$pid"
+      return 0
+    fi
+    if [ "$i" -lt "$attempts" ]; then
+      sleep "$delay"
+      delay=$(( delay < 8 ? delay * 2 : 8 ))
+    fi
+  done
+  echo "ERR: could not ensure policy $action $resource" >&2
+  return 1
 }
 
 # Ensure a top-level policy exists; echo policy identifier
@@ -137,7 +147,7 @@ reg::auth::ensure_policy() {
   pid="$(jq -r '.identifier? // empty' <<<"$r")"
   if [[ -n "$pid" ]]; then echo "$pid"; return 0; fi
 
-  r="$(ni::api::curl_nifi -X POST "${api}/policies" -d "$(jq -n --arg action "$action" --arg resource "$resource" '{action:$action,resource:$resource,users:[],userGroups:[]}')")" || true
+  r="$(ni::api::curl_nifi -X POST "${api}/policies" -d "$(jq -n --arg action "$action" --arg resource "/$resource" '{action:$action,resource:$resource,users:[],userGroups:[]}')")" || true
   pid="$(jq -r '.identifier? // empty' <<<"$r")"
   if [[ -z "$pid" ]]; then
     r="$(reg::auth::get_policy_by_resource "$action" "$resource")" || true
