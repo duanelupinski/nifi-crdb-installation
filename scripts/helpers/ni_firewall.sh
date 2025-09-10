@@ -3,15 +3,19 @@
 
 ni::ufw_defaults(){
   local remote="$1"
-  ni::ssh_sudo "$remote" $'command -v ufw >/dev/null 2>&1 || DEBIAN_FRONTEND=noninteractive apt-get install -y ufw
+  ni::ssh_sudo "$remote" bash -s <<'BASH'
+set -o errexit -o nounset -o pipefail
+export DEBIAN_FRONTEND=noninteractive
+command -v ufw >/dev/null 2>&1 || apt-get install -y ufw
 ufw default deny incoming
 ufw default allow outgoing
-ufw allow OpenSSH >/dev/null 2>&1 || ufw allow 22/tcp'
+ufw allow OpenSSH >/dev/null 2>&1 || ufw allow 22/tcp
+BASH
 }
 
 ni::resolve_and_allow_peers(){
   local remote="$1" secure="$2"; shift 2
-  ni::ssh_sudo_stdin "$remote" "$secure" "$@" <<'RSH'
+  ni::ssh_sudo_stdin "$remote" "$secure" "$@" <<'BASH'
 set -o errexit -o nounset -o pipefail
 SECURE="$1"; shift
 resolve_ip(){
@@ -39,5 +43,5 @@ done
 ufw --force enable
 ufw reload
 ufw status verbose || true
-RSH
+BASH
 }

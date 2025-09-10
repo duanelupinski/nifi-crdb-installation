@@ -7,29 +7,31 @@ ni::zk::install() {
   local dir="apache-zookeeper-${ver}-bin"
   local url1="https://dlcdn.apache.org/zookeeper/zookeeper-${ver}/${tgz}"
   local url2="https://archive.apache.org/dist/zookeeper/zookeeper-${ver}/${tgz}"
-  ni::ssh_sudo "$remote" $'
+  ni::ssh_sudo "$remote" bash -s -- "$tgz" "$dir" "$url1" "$url2" "$curl_flags" <<'BASH'
+set -o errexit -o nounset -o pipefail
 set -e
+tgz="$1"; dir="$2"; url1="$3"; url2="$4"; curl_flags="$5"
 id -u zookeeper >/dev/null 2>&1 || useradd --system --create-home --shell /usr/sbin/nologin zookeeper
 command -v curl >/dev/null 2>&1 || DEBIAN_FRONTEND=noninteractive apt-get install -y curl tar
 mkdir -p /opt
 cd /opt
-if [ ! -d '"$dir"' ]; then
-  echo downloading '"$tgz"'
-  (curl '"$curl_flags"' -fL -o '"$tgz"' '"$url1"' || curl '"$curl_flags"' -fL -o '"$tgz"' '"$url2"')
-  tar -xzf '"$tgz"'
-  rm -f '"$tgz"'
+if [ ! -d "$dir" ]; then
+  echo downloading "$tgz"
+  (curl "$curl_flags" -fL -o "$tgz" "$url1" || curl "$curl_flags" -fL -o "$tgz" "$url2")
+  tar -xzf "$tgz"
+  rm -f "$tgz"
 fi
-ln -sfn '"$dir"' zookeeper
+ln -sfn "$dir" zookeeper
 mkdir -p /var/lib/zookeeper/data /var/lib/zookeeper/datalog
-chown -R zookeeper:zookeeper /opt/'"$dir"' /opt/zookeeper /var/lib/zookeeper
-'
+chown -R zookeeper:zookeeper /opt/"$dir" /opt/zookeeper /var/lib/zookeeper
+BASH
 }
 
 # Write zoo.cfg with server list; set myid per node
 ni::zk::configure() {
   local remote="$1" myid="$2"; shift 2
   # remaining args are peer hostnames (including this host)
-  ni::ssh_sudo_stdin "$remote" "$myid" "$@" <<'RSH'
+  ni::ssh_sudo "$remote" bash -s -- "$myid" "$@" <<'BASH'
 set -o errexit -o nounset -o pipefail
 MYID="$1"; shift
 PEERS=("$@")
@@ -52,12 +54,14 @@ for h in "${PEERS[@]}"; do
 done
 echo "$MYID" > /var/lib/zookeeper/data/myid
 chown -R zookeeper:zookeeper /var/lib/zookeeper /opt/zookeeper
-RSH
+BASH
 }
 
 ni::zk::systemd() {
   local remote="$1"
-  ni::ssh_sudo "$remote" $'cat > /etc/systemd/system/zookeeper.service <<UNIT
+  ni::ssh_sudo "$remote" <<'BASH'
+set -o errexit -o nounset -o pipefail
+cat > /etc/systemd/system/zookeeper.service <<UNIT
 [Unit]
 Description=Apache ZooKeeper
 Requires=network.target remote-fs.target
@@ -76,10 +80,11 @@ LimitNOFILE=100000
 [Install]
 WantedBy=multi-user.target
 UNIT
-systemctl daemon-reload'
+systemctl daemon-reload
+BASH
 }
 
 ni::zk::enable_start() {
   local remote="$1"
-  ni::ssh_sudo "$remote" "systemctl enable --now zookeeper"
+  ni::ssh "$remote" "sudo systemctl enable --now zookeeper"
 }

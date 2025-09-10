@@ -2,37 +2,38 @@
 # Kafka install/config/systemd (ZK mode)
 
 ni::kafka::install() {
-  local remote="$1" ver="${2:-3.9.1}" scala="${3:-2.13}" base="/opt/kafka" curl_flags="${4:-}"
+  local remote="$1" ver="${2:-3.9.1}" scala="${3:-2.13}" curl_flags="${4:-}"
   local tgz="kafka_${scala}-${ver}.tgz"
   local dir="kafka-${ver}"
-  local url="https://downloads.apache.org/kafka/${ver}/${tgz}"
   local url1="https://dlcdn.apache.org/kafka/${ver}/${tgz}"
   local url2="https://archive.apache.org/dist/kafka/${ver}/${tgz}"
-  ni::ssh_sudo "$remote" $'
+  ni::ssh_sudo "$remote" bash -s -- "$tgz" "$dir" "$url1" "$url2" "$curl_flags" "$ver" "$scala" <<'BASH'
+set -o errexit -o nounset -o pipefail
 set -e
+tgz="$1"; dir="$2"; url1="$3"; url2="$4"; curl_flags="$5" ver="$6" scala="$7"
 id -u kafka >/dev/null 2>&1 || useradd --system --create-home --shell /usr/sbin/nologin kafka
 command -v curl >/dev/null 2>&1 || DEBIAN_FRONTEND=noninteractive apt-get install -y curl tar
 mkdir -p /opt
 cd /opt
-if [ ! -d '"$dir"' ]; then
-  echo downloading '"$tgz"'
-  (curl '"$curl_flags"' -fL -o '"$tgz"' '"$url1"' || curl '"$curl_flags"' -fL -o '"$tgz"' '"$url2"')
-  tar -xzf '"$tgz"'
-  rm -f '"$tgz"'
-  mv kafka_'"$scala"'-'"$ver"' '"$dir"'
+if [ ! -d "$dir" ]; then
+  echo downloading "$tgz"
+  (curl "$curl_flags" -fL -o "$tgz" "$url1" || curl "$curl_flags" -fL -o "$tgz" "$url2")
+  tar -xzf "$tgz"
+  rm -f "$tgz"
+  mv kafka_"$scala"-"$ver" "$dir"
 fi
-ln -sfn '"$dir"' kafka
+ln -sfn "$dir" kafka
 # Ensure scripts are executable for the service user
-chmod -R a+rx /opt/'"$dir"'/bin
+chmod -R a+rx /opt/"$dir"/bin
 mkdir -p /var/lib/kafka/logs
-chown -R kafka:kafka /opt/'"$dir"' /opt/kafka /var/lib/kafka
-'
+chown -R kafka:kafka /opt/"$dir" /opt/kafka /var/lib/kafka
+BASH
 }
 
 ni::kafka::configure() {
   local remote="$1" broker_id="$2" zk_connect="$3" cluster_size="$4"
   # replication factors are min(3, cluster size)
-  ni::ssh_sudo_stdin "$remote" "$broker_id" "$zk_connect" "$cluster_size" <<'RSH'
+  ni::ssh_sudo "$remote" bash -s -- "$broker_id" "$zk_connect" "$cluster_size" <<'BASH'
 set -o errexit -o nounset -o pipefail
 BID="$1"; ZK="$2"; SIZE="$3"
 RF=3; [ "$SIZE" -lt 3 ] && RF="$SIZE"
@@ -66,12 +67,14 @@ group.initial.rebalance.delay.ms=0
 auto.create.topics.enable=true
 CFG
 chown kafka:kafka "$CFG" /var/lib/kafka -R
-RSH
+BASH
 }
 
 ni::kafka::systemd() {
   local remote="$1"
-  ni::ssh_sudo "$remote" $'cat > /etc/systemd/system/kafka.service <<\'UNIT\'
+  ni::ssh_sudo "$remote" <<'BASH'
+set -o errexit -o nounset -o pipefail
+cat > /etc/systemd/system/kafka.service <<UNIT
 [Unit]
 Description=Apache Kafka Broker
 Requires=network.target zookeeper.service
@@ -95,10 +98,11 @@ LimitNOFILE=100000
 [Install]
 WantedBy=multi-user.target
 UNIT
-systemctl daemon-reload'
+systemctl daemon-reload
+BASH
 }
 
 ni::kafka::enable_start() {
   local remote="$1"
-  ni::ssh_sudo "$remote" "systemctl enable --now kafka"
+  ni::ssh "$remote" "sudo systemctl enable --now kafka"
 }

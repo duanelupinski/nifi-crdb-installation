@@ -3,13 +3,13 @@
 
 ni::nifi::user() {
   local remote="$1" user="${2:-nifi}"
-  ni::ssh_sudo "$remote" $'id -u '"$user"' >/dev/null 2>&1 || useradd --system --create-home --shell /usr/sbin/nologin '"$user"
+  ni::ssh "$remote" $'id -u '"$user"' >/dev/null 2>&1 || sudo useradd --system --create-home --shell /usr/sbin/nologin '"$user"
 }
 
 # --- Install Apache NiFi and set env vars (JAVA_HOME, NIFI_HOME) ---
 ni::nifi::install() {
   local remote="$1" ver="$2" user="$3" curl_flags="${4:-}"
-  ni::ssh_sudo "$remote" bash -s -- "$ver" "$user" "$curl_flags" <<'REMOTE'
+  ni::ssh_sudo "$remote" bash -s -- "$ver" "$user" "$curl_flags" <<'BASH'
 set -o errexit -o nounset -o pipefail
 ver="$1"; user="$2"; curl_flags="$3"
 
@@ -62,13 +62,13 @@ set_kv "NIFI_HOME" "/opt/nifi" /etc/environment
 printf 'export JAVA_HOME=%s\n' "${JAVA_HOME:-/usr/lib/jvm/java-21-openjdk-arm64}" > /etc/profile.d/java_home.sh
 printf 'export NIFI_HOME=%s\n' "/opt/nifi" > /etc/profile.d/nifi_home.sh
 chmod 0644 /etc/profile.d/java_home.sh /etc/profile.d/nifi_home.sh
-REMOTE
+BASH
 }
 
 # --- Install NiFi Toolkit and set NIFI_TOOLKIT_HOME ---
 ni::nifi::install_toolkit() {
   local remote="$1" ver="$2" user="$3" curl_flags="${4:-}"
-  ni::ssh_sudo "$remote" bash -s -- "$ver" "$user" "$curl_flags" <<'REMOTE'
+  ni::ssh_sudo "$remote" bash -s -- "$ver" "$user" "$curl_flags" <<'BASH'
 set -o errexit -o nounset -o pipefail
 ver="$1"; user="$2"; curl_flags="$3"
 
@@ -115,20 +115,21 @@ set_kv() {
 set_kv "NIFI_TOOLKIT_HOME" "/opt/nifi-toolkit" /etc/environment
 printf 'export NIFI_TOOLKIT_HOME=%s\n' "/opt/nifi-toolkit" > /etc/profile.d/nifi_toolkit_home.sh
 chmod 0644 /etc/profile.d/nifi_toolkit_home.sh
-REMOTE
+BASH
 }
 
 # Common nifi.properties updates shared by all nodes
 # Usage: ni::nifi::configure_common <ssh-remote> <secure:true|false> <zk_connect> [nifi_user]
 ni::nifi::configure() {
   local remote="$1" secure="$2" zk_connect="$3" user="${4:-nifi}"
-  ni::ssh_sudo_stdin "$remote" env KEY="${SENSITIVE_KEY:-}" KS_PWD="${KEYSTORE_PASSWD:-}" \
-    TS_PWD="${TRUSTSTORE_PASSWD:-}" bash -s -- "$secure" "$zk_connect" "$user" <<'RSH'
+  ni::ssh_sudo "$remote" \
+    env KEY="${SENSITIVE_KEY:-}" KS_PWD="${KEYSTORE_PASSWD:-}" TS_PWD="${TRUSTSTORE_PASSWD:-}" \
+    bash -s -- "$secure" "$zk_connect" "$user" <<'BASH'
 set -o errexit -o nounset -o pipefail
 SECURE="$1"; ZK="$2"; NIFI_USER="$3";
 NIFI_HOME="${NIFI_HOME:-/opt/nifi}"
 CONF="$NIFI_HOME/conf/nifi.properties"
-HOST="$(hostname)"
+HOST="$( (hostname -s 2>/dev/null || hostname) | cut -d. -f1 )"
 CERTS="$NIFI_HOME/certs"
 
 [ -f "$CONF" ] || { echo "ERROR: $CONF not found"; exit 2; }
@@ -224,7 +225,7 @@ chown -R "$NIFI_USER:$NIFI_USER" "$NIFI_HOME" 2>/dev/null || true
 
 # finally, update zk connection string in state management config
 xmlstarlet ed -P -L -u /stateManagement/cluster-provider/property[@name='"Connect String"'] -v "${ZK}" $NIFI_HOME/conf/state-management.xml
-RSH
+BASH
 }
 
 # Ensure flowfile + database repo dirs exist and are owned by nifi
@@ -970,7 +971,7 @@ ni::nifi::ensure_registry_client() {
   # Ensure controller-scoped SSL CS exists/enabled; get its ID
   local ssl_cs_id; ssl_cs_id="$(ni::nifi::ensure_controller_ssl_service "$api")" || return 1
 
-  List registry clients
+  # List registry clients
   local list; list="$(ni::api::curl_nifi "${api}/controller/registry-clients")" || return 1
 
   # Prefer a client that already targets our URL; else reuse the first client; else create one

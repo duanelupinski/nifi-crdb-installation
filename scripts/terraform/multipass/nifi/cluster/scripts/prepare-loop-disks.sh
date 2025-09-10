@@ -11,7 +11,7 @@ COUNT="${2:-5}"        # number of loop disks
 SIZE="${3:-50G}"       # size of each image file
 IMG_DIR="/var/lib/nifi-disks"
 
-multipass exec "$VM_NAME" -- sudo bash -s -- "$COUNT" "$SIZE" "$IMG_DIR" <<'REMOTE'
+multipass exec "$VM_NAME" -- sudo bash -s -- "$COUNT" "$SIZE" "$IMG_DIR" <<'BASH'
 COUNT="$1"; SIZE="$2"; IMG_DIR="$3"
 set -o errexit -o nounset -o pipefail
 
@@ -73,4 +73,4 @@ done
 echo
 echo "Loop devices:"
 losetup -a | grep "$IMG_DIR" || true
-REMOTE
+BASH

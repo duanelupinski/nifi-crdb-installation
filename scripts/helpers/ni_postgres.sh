@@ -6,7 +6,7 @@ ni::pg::install_jdbc() {
   local jar="postgresql-${ver}.jar"
   local url="https://jdbc.postgresql.org/download/${jar}"
 
-  ni::ssh_sudo_stdin "$remote" "$dest" "$jar" "$url" "$user" "$curl_flags" <<'RSH'
+  ni::ssh_sudo_stdin "$remote" "$dest" "$jar" "$url" "$user" "$curl_flags" <<'BASH'
 set -o errexit -o nounset -o pipefail
 DEST="$1"; JAR="$2"; URL="$3"; user="$4"; CURL_FLAGS="$5"
 
@@ -25,5 +25,5 @@ if [ ! -f "$DEST/$JAR" ]; then
 fi
 sudo chown -R $user:$user "$DEST/.."
 ln -sfn "$JAR" "$DEST/postgresql-jdbc.jar"
-RSH
+BASH
 }

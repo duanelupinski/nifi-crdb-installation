@@ -7,7 +7,7 @@
 # --- Install NiFi Registry and set NIFI_REGISTRY_HOME ---
 ni::registry::install() {
   local remote="$1" ver="$2" user="$3" curl_flags="${4:-}"
-  ni::ssh_sudo "$remote" bash -s -- "$ver" "$user" "$curl_flags" <<'REMOTE'
+  ni::ssh_sudo "$remote" bash -s -- "$ver" "$user" "$curl_flags" <<'BASH'
 set -o errexit -o nounset -o pipefail
 ver="$1"; user="$2"; curl_flags="$3"
 
@@ -51,15 +51,16 @@ set_kv() {
 set_kv "NIFI_REGISTRY_HOME" "/opt/nifi-registry" /etc/environment
 printf 'export NIFI_REGISTRY_HOME=%s\n' "/opt/nifi-registry" > /etc/profile.d/nifi_registry_home.sh
 chmod 0644 /etc/profile.d/nifi_registry_home.sh
-REMOTE
+BASH
 }
 
 # Configure NiFi Registry web listeners (secure or http), hostnames only.
 # Usage: ni::registry::configure_web <ssh-remote> <secure:true|false> <registry_hostname> [nifi_user]
 ni::registry::configure() {
   local remote="$1" secure="$2" reg_host="$3" user="${4:-nifi}"
-  ni::ssh_sudo_stdin "$remote" env KS_PWD="${KEYSTORE_PASSWD:-}" \
-    TS_PWD="${TRUSTSTORE_PASSWD:-}" bash -s -- "$secure" "$reg_host" "$user" <<'RSH'
+  ni::ssh_sudo "$remote" \
+    env KS_PWD="${KEYSTORE_PASSWD:-}" TS_PWD="${TRUSTSTORE_PASSWD:-}" \
+    bash -s -- "$secure" "$reg_host" "$user" <<'BASH'
 set -o errexit -o nounset -o pipefail
 SECURE="$1"; HOST="$2"; NIFI_USER="$3";
 NIFI_HOME="${NIFI_HOME:-/opt/nifi}"
@@ -109,7 +110,7 @@ fi
 
 # Make sure the nifi user owns dirs it needs to write to (not the whole distro)
 chown -R "$NIFI_USER:$NIFI_USER" "$NIFI_REGISTRY_HOME" 2>/dev/null || true
-RSH
+BASH
 }
 
 # NiFi: replace Node Identity list with the provided hosts (idempotent)
