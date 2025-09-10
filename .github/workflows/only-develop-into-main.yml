@@ -1,0 +1,17 @@
+name: enforce-develop-into-main
+on:
+  pull_request:
+    branches: [ main ]
+    types: [opened, synchronize, reopened, ready_for_review]
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Allow only PRs from develop into main
+        run: |
+          echo "base=${{ github.base_ref }} head=${{ github.head_ref }}"
+          if [ "${{ github.base_ref }}" = "main" ] && [ "${{ github.head_ref }}" != "develop" ]; then
+            echo "❌ Only allow PRs from 'develop' into 'main'."
+            exit 1
+          fi
+          echo "✅ Rule satisfied."
