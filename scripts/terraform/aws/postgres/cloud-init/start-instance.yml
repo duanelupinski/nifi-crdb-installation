@@ -1,0 +1,562 @@
+#cloud-config
+repo_update: true
+package_upgrade: true
+timezone: UTC
+
+write_files:
+  - path: /usr/bin/check-packages.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      
+      packages=$1
+      export IFS=","
+      
+      for package in $${packages}; do
+          name=$(echo $${package} | sed -e 's/^[[:space:]]*//')
+          count=$(dpkg-query -l "$${name}" | grep "$${name}" | wc -l)
+          attempts=0
+          while [[ $${count} -eq 0 && $${attempts} -lt 12 ]]; do
+              ((attempts++))
+              sleep 15
+              sudo apg-get install -y $(echo "$${packages}" | tr ',' ' ')
+              count=$(dpkg-query -l "$${name}" | grep "$${name}" | wc -l)
+          done
+      done
+  
+  - path: /var/lib/postgresql/mount-postgres.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      
+      count=0
+      attempts=0
+      while [[ $${count} -eq 0 && $${attempts} -lt 24 ]]; do
+          ((attempts++))
+          device_name=/dev/sdp
+          count=$(ls -ltrh $${device_name} | wc -l)
+          if [[ $${count} -eq 0 ]] ; then
+              device_name=/dev/xvdp
+              count=$(ls -ltrh $${device_name} | wc -l)
+              if [[ $${count} -eq 0 ]] ; then
+                  device_name=/dev/hdp
+                  count=$(ls -ltrh $${device_name} | wc -l)
+                  if [[ $${count} -eq 0 ]] ; then
+                      sleep 15
+                  fi
+              fi
+          fi
+      done
+      
+      sudo mkfs -t xfs $${device_name}
+      sudo mkdir -p /mnt/postgres
+      sudo mount $${device_name} //mnt/postgres
+      sudo chown -R postgres:postgres /mnt/postgres
+      echo $${device_name}    /mnt/postgres    xfs    defaults    0    2 | sudo tee -a /etc/fstab > /dev/null
+  
+  - path: /var/lib/postgresql/update-settings.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      
+      PROG="$(basename "${0}")"
+      SCRIPT_DIR="$(cd "$(dirname "${0}")" && pwd)"
+      PG_VERSION=$(psql -V | cut -f3 -d' ' | cut -f1 -d.)
+      CPUS=$(echo $(lscpu | egrep '^CPU\(s\)') | cut -f2 -d' ')
+      
+      # we can allow up to 16 connections per cpu
+      MAX_CONNECTIONS=$(( $${CPUS} * 16 ))
+      sudo sed -i "s/max_connections = 100/max_connections = $${MAX_CONNECTIONS}/g" /etc/postgresql/$${PG_VERSION}/main/postgresql.conf
+      
+      TOTAL_RAM=$(echo "scale=4; $(echo $(lsmem | egrep '^Total online memory') | cut -f2 -d':' | cut -f2 -d' ' | tr -d -c [.0-9])" | bc -l)
+      MEM_UNITS=$(echo $(lsmem | egrep '^Total online memory') | cut -f2 -d':' | cut -f2 -d' ' | tr -d [.0-9])
+      if (( $(echo "$${TOTAL_RAM} < 4" | bc -l) )); then
+          TOTAL_RAM=$(echo "scale=0; $${TOTAL_RAM} * 1024" | bc)
+          case $${MEM_UNITS} in
+              G)
+                  MEM_UNITS=M
+                  ;;
+              M)
+                  MEM_UNITS=K
+                  ;;
+          esac
+      fi
+      TOTAL_RAM=$(echo $${TOTAL_RAM} | cut -f1 -d'.')
+      if (( $${TOTAL_RAM} % 4 )); then
+          TOTAL_RAM=$(( ($${TOTAL_RAM} + 4) / 4 * 4 ))
+      fi
+      
+      # setting shared_buffers to 25% of the machine's total RAM
+      SHARED_BUFFERS=$(( $${TOTAL_RAM} / 4 ))
+      sudo sed -i "s/shared_buffers = 128MB/shared_buffers = $${SHARED_BUFFERS}$${MEM_UNITS}B/g" /etc/postgresql/$${PG_VERSION}/main/postgresql.conf
+      
+      # we can divide the shared buffer size by the max connections equally to approximate work memory
+      # but to support higher concurrency for this workload we're going to assume a small degree of parallelism
+      MIN_WORK_MEM=4
+      if [[ $${MEM_UNITS} == "G" ]]; then
+          WORK_MEM=$(( $${SHARED_BUFFERS} * 1024 / $${MAX_CONNECTIONS} / 4 ))
+      else
+          WORK_MEM=$(( $${SHARED_BUFFERS} / $${MAX_CONNECTIONS} / 4 ))
+      fi
+      if (( $${WORK_MEM} < $${MIN_WORK_MEM} )); then
+          WORK_MEM=$${MIN_WORK_MEM}
+      fi
+      sudo sed -i "s/#work_mem = 4MB/work_mem = $${WORK_MEM}MB/g" /etc/postgresql/$${PG_VERSION}/main/postgresql.conf
+      
+      # if needed allow hash operations to consume twice as much work memory
+      #sudo sed -i "s/#hash_mem_multiplier = 1.0/hash_mem_multiplier = 2.0/g" /etc/postgresql/$${PG_VERSION}/main/postgresql.conf
+      
+      # also keeping temp_buffers a realtive low value for this workload to support higher concurrency
+      TEMP_BUFFERS=$(( $${WORK_MEM} * 2 ))
+      sudo sed -i "s/#temp_buffers = 8MB/temp_buffers = $${TEMP_BUFFERS}MB/g" /etc/postgresql/$${PG_VERSION}/main/postgresql.conf
+      
+      # setting effective_cache_size to 75% of the machine's total RAM
+      EFFECTIVE_CACHE_SIZE=$(( $${TOTAL_RAM} / 4 * 3 ))
+      sudo sed -i "s/#effective_cache_size = 4GB/effective_cache_size = $${EFFECTIVE_CACHE_SIZE}$${MEM_UNITS}B/g" /etc/postgresql/$${PG_VERSION}/main/postgresql.conf
+      
+      # setting maintenance_work_mem to ~3% of the machine's total RAM
+      MIN_MAINTENANCE_WORK_MEM=1
+      if [[ $${MEM_UNITS} == "G" ]]; then
+          MAINTENANCE_WORK_MEM=$(( $${TOTAL_RAM} * 1024 / 32 ))
+      else
+          MAINTENANCE_WORK_MEM=$(( $${TOTAL_RAM} / 32 ))
+      fi
+      if (( $${MAINTENANCE_WORK_MEM} < $${MIN_MAINTENANCE_WORK_MEM} )); then
+          MAINTENANCE_WORK_MEM=$${MIN_MAINTENANCE_WORK_MEM}
+      fi
+      sudo sed -i "s/#maintenance_work_mem = 64MB/maintenance_work_mem = $${MAINTENANCE_WORK_MEM}MB/g" /etc/postgresql/$${PG_VERSION}/main/postgresql.conf
+      
+      # noting the default value for max_files_per_process, but not changing it here
+      #max_files_per_process = 1000
+      
+      # enabling asynchronous commit so that transactions complete more quickly, for this workload we're not concerned about data loss
+      sudo sed -i "s/#synchronous_commit = on/synchronous_commit = off/g" /etc/postgresql/$${PG_VERSION}/main/postgresql.conf
+      
+      # maximizing the checkpoint_timeout so that it doesn't interfere with our workload test
+      sudo sed -i "s/#checkpoint_timeout = 5min/checkpoint_timeout = 1d/g" /etc/postgresql/$${PG_VERSION}/main/postgresql.conf
+      
+      # commenting out the settings below since we've effectively disabled write ahead logs for the duration of the test < 24hr
+      # for this simulation data loss is not a factor and instead we want to increase the cpu load average without blocking on more I/O
+      #sudo sed -i "s/max_wal_size = 1GB/max_wal_size = $${CPUS}GB/g" /etc/postgresql/$${PG_VERSION}/main/postgresql.conf
+      #sudo sed -i "s/min_wal_size = 80MB/min_wal_size = $(( $${CPUS} * 100 ))MB/g" /etc/postgresql/$${PG_VERSION}/main/postgresql.conf
+      #sudo sed -i "s/#checkpoint_completion_target = 0.5/checkpoint_completion_target = 0.9/g" /etc/postgresql/$${PG_VERSION}/main/postgresql.conf
+  
+      echo "executed $${PROG} from $${SCRIPT_DIR} with:
+          PG_VERSION=$${PG_VERSION}
+          CPUS=$${CPUS}
+          MAX_CONNECTIONS=$${MAX_CONNECTIONS}
+          TOTAL_RAM=$${TOTAL_RAM}$${MEM_UNITS}B
+          SHARED_BUFFERS=$${SHARED_BUFFERS}$${MEM_UNITS}B
+          WORK_MEM=$${WORK_MEM}MB
+          TEMP_BUFFERS=$${TEMP_BUFFERS}MB
+          EFFECTIVE_CACHE_SIZE=$${EFFECTIVE_CACHE_SIZE}$${MEM_UNITS}B
+          MAINTENANCE_WORK_MEM=$${MAINTENANCE_WORK_MEM}MB"
+  
+  - path: /var/lib/postgresql/userlist.py
+    permissions: '0644'
+    content: |
+      import sys
+      import os
+      import hashlib
+      
+      if __name__ == "__main__":
+        username = sys.argv[1]
+        password = "md5" + hashlib.md5(bytes(sys.argv[2], encoding='utf-8') + bytes(username, encoding='utf-8')).hexdigest()
+        os.system('echo \\"' + username + '\\" \\"' + password + '\\" > /var/lib/postgresql/userlist.txt')
+  
+  - path: /var/lib/postgresql/pgbouncer.template
+    permissions: '0644'
+    content: |
+      [databases]
+      * = host=localhost port=5432 dbname=postgres user=%SERVER%
+      
+      [pgbouncer]
+      listen_port = 4432
+      listen_addr = *
+      user = %SERVER%
+      unix_socket_dir = %SCRIPT_DIR%/run/%PGID%
+      so_reuseport = 1
+      auth_type = md5
+      auth_file = %SCRIPT_DIR%/userlist.txt
+      admin_users = %CLIENT%
+      logfile = %SCRIPT_DIR%/pgbouncer.%PGID%.log
+      pidfile = %SCRIPT_DIR%/pgbouncer.%PGID%.pid
+      pool_mode = session
+      max_client_conn = 8192
+      default_pool_size = %SIZE%
+      min_pool_size = 10
+      reserve_pool_size = 0
+      reserve_pool_timeout = 0
+      listen_backlog = 4096
+      server_round_robin = 1
+      ignore_startup_parameters = extra_float_digits,options,autoReconnect,ApplicationName,reWriteBatchedInserts
+      
+      # Dangerous timeouts
+      query_wait_timeout = 10
+  
+  - path: /var/lib/postgresql/start-pgbouncer.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      
+      PROG="$(basename "$${0}")"
+      SCRIPT_DIR="$(cd "$(dirname "$${0}")" && pwd)"
+      PGBOUNCER_CLIENT="postgres"
+      PGBOUNCER_SERVER="postgres"
+      PGBOUNCER_CONNECTIONS=$(( $(echo $(lscpu | egrep '^CPU\(s\)') | cut -f2 -d' ') * 16 ))
+      
+      usage() {
+          echo "USAGE: $${PROG}
+          [--client-account <PGBOUNCER_CLIENT>
+          [--server-account <PGBOUNCER_SERVER>]
+          [--num-connections <PGBOUNCER_CONNECTIONS>]
+      "
+      }
+      
+      help_exit() {
+          usage
+          echo "This is a utility script to create and start pgbouncer instances supporting a single connection pool
+      Options:
+          -c, --client-account PGBOUNCER_CLIENT
+              the username we expect to authenticate from the frontend client application, defaults to postgres
+          -s, --server-account PGBOUNCER_SERVER
+              the username that will be authenticated against the backend database server, defaults to postgres
+          -n, --num-connections PGBOUNCER_CONNECTIONS
+              the maximum number of connections that will be served by this pgbouncer pool, defaults to 16 times the number of cpus
+          -h, --help
+              output this help message
+      "
+          exit 0
+      }
+      
+      assign() {
+          key="$${1}"
+          value="$${key#*=}"
+          if [[ "$${value}" != "$${key}" ]]; then
+              # key was of the form 'key=value'
+              echo "$${value}"
+              return 0
+          elif [[ "x$${2}" != "x" ]]; then
+              echo "$${2}"
+              return 2
+          else
+              output "Required parameter for '-$${key}' not specified.\n"
+              usage
+              exit 1
+          fi
+          keypos=$keylen
+      }
+      
+      while [[ $# -ge 1 ]]; do
+          key="$${1}"
+          case $key in
+              -*)
+                  keylen=$${#key}
+                  keypos=1
+                  while [[ $keypos -lt $keylen ]]; do
+                      case $${key:$${keypos}} in
+                          c|-client-account)
+                              PGBOUNCER_CLIENT=$(assign "$${key:$${keypos}}" "$${2}")
+                              if [[ $? -eq 2 ]]; then shift; fi
+                              keypos=$keylen
+                          ;;
+                          s|-server-account)
+                              PGBOUNCER_SERVER=$(assign "$${key:$${keypos}}" "$${2}")
+                              if [[ $? -eq 2 ]]; then shift; fi
+                              keypos=$keylen
+                          ;;
+                          n|-num-connections)
+                              PGBOUNCER_CONNECTIONS=$(assign "$${key:$${keypos}}" "$${2}")
+                              if [[ $? -eq 2 ]]; then shift; fi
+                              keypos=$keylen
+                          ;;
+                          h*|-help)
+                              help_exit
+                          ;;
+                          *)
+                              output "Unknown option '$${key:$${keypos}}'.\n"
+                              usage
+                              exit 1
+                          ;;
+                      esac
+                      ((keypos++))
+                  done
+              ;;
+          esac
+          shift
+      done
+      
+      echo "executing $${PROG} from $${SCRIPT_DIR} with:
+          PGBOUNCER_CLIENT=$${PGBOUNCER_CLIENT}
+          PGBOUNCER_SERVER=$${PGBOUNCER_SERVER}
+          PGBOUNCER_CONNECTIONS=$${PGBOUNCER_CONNECTIONS}"
+      
+      grep -q $${PGBOUNCER_CLIENT} $${SCRIPT_DIR}/userlist.txt
+      if [ $? -ne 0 ]; then
+          echo \"$${PGBOUNCER_CLIENT}\" \"\" > $${SCRIPT_DIR}/userlist.txt
+      fi
+      
+      num_files=$(( ($${PGBOUNCER_CONNECTIONS} / 64) + ($${PGBOUNCER_CONNECTIONS} % 64 > 0) ))
+      pool_size=$(( ($${PGBOUNCER_CONNECTIONS} / $${num_files}) + ($${PGBOUNCER_CONNECTIONS} % $${num_files} > 0) ))
+      echo "creating $${num_files} instances with $${pool_size} connections each"
+      
+      for (( i=1; i<=$${num_files}; i++ )); do
+          PGID=$${i}
+          cp $${SCRIPT_DIR}/pgbouncer.template $${SCRIPT_DIR}/pgbouncer.$${PGID}.ini
+          sed -i "s/%PGID%/$${PGID}/g" $${SCRIPT_DIR}/pgbouncer.$${PGID}.ini
+          sed -i "s/%CLIENT%/$${PGBOUNCER_CLIENT}/g" $${SCRIPT_DIR}/pgbouncer.$${PGID}.ini
+          sed -i "s/%SERVER%/$${PGBOUNCER_SERVER}/g" $${SCRIPT_DIR}/pgbouncer.$${PGID}.ini
+          sed -i "s/%SIZE%/$${pool_size}/g" $${SCRIPT_DIR}/pgbouncer.$${PGID}.ini
+          script_dir_esc=$(eval echo $${SCRIPT_DIR} | sed 's/\//\\\//g')
+          sed -i "s/%SCRIPT_DIR%/$${script_dir_esc}/g" $${SCRIPT_DIR}/pgbouncer.$${PGID}.ini
+          mkdir -p $${SCRIPT_DIR}/run/$${PGID}
+      done
+      chown -R postgres:postgres $${SCRIPT_DIR}
+      
+      while true; do
+          for FILE in $${SCRIPT_DIR}/*.ini; do
+              pid=$(ps aux | grep $${FILE} | grep -v 'grep' | awk '{print $2}')
+              if [ -z "$${pid}" ]; then
+                  pgbouncer -d -u postgres $${FILE}
+              fi
+              sleep 5
+          done
+      done
+  
+  - path: /etc/systemd/system/pgbouncer_runner.service
+    content: |
+      [Unit]
+      Description=PGBouncer Runner
+      After=network.target
+
+      [Service]
+      Type=simple
+      ExecStart=/var/lib/postgresql/start-pgbouncer.sh -c postgres -s postgres
+      Restart=on-failure
+      User=postgres
+      Group=postgres
+
+      [Install]
+      WantedBy=multi-user.target
+  
+  - path: /etc/systemd/system/node_exporter.service
+    content: |
+      [Unit]
+      Description=Node Exporter
+      After=network.target
+
+      [Service]
+      Type=simple
+      ExecStart=/usr/local/bin/node_exporter
+      Restart=on-failure
+      User=node_exporter
+      Group=node_exporter
+
+      [Install]
+      WantedBy=multi-user.target
+  
+  - path: /etc/systemd/system/postgres_exporter.service
+    content: |
+      [Unit]
+      Description=Postgres Exporter
+      After=network.target
+
+      [Service]
+      Type=simple
+      Environment=DATA_SOURCE_NAME='postgresql://postgres:postgres@localhost:5432/postgres?sslmode=disable'
+      ExecStart=/usr/local/bin/postgres_exporter
+      Restart=on-failure
+      User=postgres
+      Group=postgres
+
+      [Install]
+      WantedBy=multi-user.target
+
+apt:
+  sources_list: |
+    deb http://deb.debian.org/debian/ $(lsb_release -a | grep Codename: | cut -f2 -d: | xargs) main contrib non-free
+    deb-src http://deb.debian.org/debian/ $(lsb_release -a | grep Codename: | cut -f2 -d: | xargs) main contrib non-free
+
+    deb http://deb.debian.org/debian/ $(lsb_release -a | grep Codename: | cut -f2 -d: | xargs)-updates main contrib non-free
+    deb-src http://deb.debian.org/debian/ $(lsb_release -a | grep Codename: | cut -f2 -d: | xargs)-updates main contrib non-free
+
+    deb http://deb.debian.org/debian-security $(lsb_release -a | grep Codename: | cut -f2 -d: | xargs)-security main
+    deb-src http://deb.debian.org/debian-security $(lsb_release -a | grep Codename: | cut -f2 -d: | xargs)-security main
+  conf: |
+    APT {
+      Get {
+        Assume-Yes "true";
+        Fix-Broken "true";
+      };
+    };
+
+packages:
+  - apt-transport-https
+  - bc
+  - build-essential
+  - ca-certificates
+  - curl
+  - debconf-utils
+  - dnsutils
+  - gnupg2
+  - less
+  - net-tools
+  - numactl
+  - pgbouncer
+  #- postgresql
+  - postgresql-common
+  #- postgresql-contrib
+  - rsync
+  - screen
+  - software-properties-common
+  - vim
+  - wget
+  - xfsprogs
+
+#bootcmd:
+#  - sudo mkdir -p /mnt/postgres
+
+#disk_setup:
+#  /dev/sdp:
+#    table_type: 'gpt'
+#    layout:
+#      - [100, 31]
+#    overwrite: true
+
+#fs_setup:
+#  - label: postgres
+#    filesystem: 'xfs'
+#    device: /dev/sdp
+#    partition: sdp1
+#    overwrite: true
+
+#mounts:
+#  - [ /dev/sdp1, /mnt/postgres, xfs, "defaults", "0", "2" ]
+
+runcmd:
+  # the cdn for our debian distro will throttle requests and depending on the number of instances
+  # we are spinning up concurrently we need to confirm that the packages are successfully installed
+  - /usr/bin/check-packages.sh 'apt-transport-https,bc,build-essential,ca-certificates,curl,debconf-utils,dnsutils,gnupg2,less,net-tools,pgbouncer,postgresql-common,rsync,screen,software-properties-common,vim,wget,xfsprogs'
+  
+  ## the latest debian distribution will install postgres version 15
+  ## but since our database exports were created with postgres 13 we will stay with that version
+  ## and manually install from the apt pgdg repository
+  - sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+  - sudo apt-get update
+  - echo postgresql-common postgresql-common/obsolete-major seen true | sudo debconf-set-selections
+  - DEBIAN_FRONTEND=noninteractive sudo apt-get install -y -o "APT::Get::force-yes=true" postgresql-13
+  
+  ## format and mount the filesystem for the postgres database
+  - /var/lib/postgresql/mount-postgres.sh
+  
+  ## move the data directory to the new postgres mount
+  - sudo systemctl stop postgresql
+  - pg_version=$(psql -V | cut -f3 -d' ' | cut -f1 -d.)
+  - sudo rsync -av /var/lib/postgresql/$${pg_version} /mnt/postgres
+  - sudo mv /var/lib/postgresql/$${pg_version}/main /var/lib/postgresql/$${pg_version}/main.bak
+  - sudo sed -i "s/\/var\/lib\/postgresql\/$${pg_version}\/main/\/mnt\/postgres\/$${pg_version}\/main/g" /etc/postgresql/$${pg_version}/main/postgresql.conf
+  - sudo systemctl start postgresql
+  - sudo rm -Rf /var/lib/postgresql/$${pg_version}
+  
+  ## start postgres and update configurations to match the size of the database
+  - sudo renice -n -10 -u postgres
+  - /var/lib/postgresql/update-settings.sh
+  - sudo systemctl restart postgresql
+  - sleep 15
+  
+  ## update the postgres address configuration and user credentials
+  ## if we upgrade to postgres version 15 the default encryption algorithm will chnange to sha-256
+  ## but since pg-bouncer doesn't yet support sha-256 we'll have to roll back to md5
+  ## however, since we're staying on postgres 13 i've commented out lines required for switching back to md5
+  - sudo sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'\t/g" /etc/postgresql/$${pg_version}/main/postgresql.conf
+  - sudo sed -i "s/host    all             all             127.0.0.1\/32/host    all             all             0.0.0.0\/0   /g" /etc/postgresql/$${pg_version}/main/pg_hba.conf
+  #- sudo sed -i "s/#password_encryption = scram-sha-256/password_encryption = md5\t/g" /etc/postgresql/$${pg_version}/main/postgresql.conf
+  #- sudo sed -i "/^host/ s/scram-sha-256/trust/" /etc/postgresql/$${pg_version}/main/pg_hba.conf
+  #- sudo systemctl restart postgresql
+  - sudo -u postgres psql -c "ALTER USER postgres WITH PASSWORD 'postgres';"
+  #- sudo sed -i "/^host/ s/trust/md5/" /etc/postgresql/$${pg_version}/main/pg_hba.conf
+  - sudo systemctl restart postgresql
+  
+  ## increase the I/O limits on the server for pgbouncer
+  - sudo sed -i '/^# End of file/d' /etc/security/limits.conf
+  - sudo sed -i '/^\* hard nofile /{h;s/nofile .*/nofile 50000/};$${x;/^$/{s//\* hard nofile 50000/;H};x}' /etc/security/limits.conf
+  - sudo sed -i '/^\* soft nofile /{h;s/nofile .*/nofile 50000/};$${x;/^$/{s//\* soft nofile 50000/;H};x}' /etc/security/limits.conf
+  - sudo sed -i '/^\* hard nproc /{h;s/nproc .*/nproc 10000/};$${x;/^$/{s//\* hard nproc 10000/;H};x}' /etc/security/limits.conf
+  - sudo sed -i '/^\* soft nproc /{h;s/nproc .*/nproc 10000/};$${x;/^$/{s//\* soft nproc 10000/;H};x}' /etc/security/limits.conf
+  - echo "# End of file" | sudo tee -a /etc/security/limits.conf > /dev/null
+  - sudo sysctl -w net.ipv4.ip_local_port_range="10000 65000"
+  - sudo sed -i '/^vm.swappiness =/{h;s/=.*/= 0/};$${x;/^$/{s//vm.swappiness = 0/;H};x}' /etc/sysctl.conf
+  - sudo sysctl --system
+  
+  ## the following will update pgbouncer to version 1.17
+  - sudo apt-get update
+  - sudo apt-get install -y libevent-dev
+  - sudo apt-get install -y pkg-config
+  - sudo apt-get install -y libssl-dev
+  - wget https://www.pgbouncer.org/downloads/files/1.17.0/pgbouncer-1.17.0.tar.gz
+  - tar -xvf pgbouncer-1.17.0.tar.gz
+  - rm pgbouncer-1.17.0.tar.gz
+  - cd pgbouncer-1.17.0/
+  - ./configure --prefix=/usr/local
+  - sudo make
+  - sudo make install
+  
+  ## generate the configuration files for postgres and start pgbouncer
+  - sudo chown postgres:postgres /var/lib/postgresql/userlist.py
+  - sudo python3 /var/lib/postgresql/userlist.py postgres postgres
+  - sudo chown postgres:postgres /var/lib/postgresql/userlist.txt
+  - sudo chown postgres:postgres /var/lib/postgresql/pgbouncer.template
+  - sudo systemctl daemon-reload
+  - sudo systemctl enable pgbouncer_runner
+  - sudo systemctl start pgbouncer_runner
+  
+  ## install, configure and start node exporter
+  - wget https://github.com/prometheus/node_exporter/releases/download/v1.6.0/node_exporter-1.6.0.linux-${architecture}.tar.gz
+  - tar xvfz node_exporter-1.6.0.linux-${architecture}.tar.gz
+  - rm node_exporter-1.6.0.linux-${architecture}.tar.gz
+  - sudo mv node_exporter-1.6.0.linux-${architecture}/node_exporter /usr/local/bin/
+  - rm -fr node_exporter-1.6.0.linux-${architecture}
+  - sudo useradd -rs /bin/false node_exporter
+  - sudo mkdir -p /etc/prometheus_node_exporter/
+  - sudo touch /etc/prometheus_node_exporter/configuration.yml
+  - sudo chmod 600 /etc/prometheus_node_exporter/*
+  - sudo chmod 700 /etc/prometheus_node_exporter
+  - sudo chown -R node_exporter:node_exporter /etc/prometheus_node_exporter
+  - sudo systemctl daemon-reload
+  - sudo systemctl enable node_exporter
+  - sudo systemctl start node_exporter
+  
+  ## install, configure and start postgres exporter
+  - wget https://github.com/prometheus-community/postgres_exporter/releases/download/v0.12.1/postgres_exporter-0.12.1.linux-${architecture}.tar.gz
+  - tar xvfz postgres_exporter-0.12.1.linux-${architecture}.tar.gz
+  - rm postgres_exporter-0.12.1.linux-${architecture}.tar.gz
+  - sudo mv postgres_exporter-0.12.1.linux-${architecture}/postgres_exporter /usr/local/bin/
+  - rm -fr postgres_exporter-0.12.1.linux-${architecture}
+  - sudo systemctl daemon-reload
+  - sudo systemctl enable postgres_exporter
+  - sudo systemctl start postgres_exporter
+  
+  ## install python dependencies
+  - sudo apt-get update
+  - sudo apt-get install -y libpq-dev python-dev-is-python3
+  - sudo apt-get install -y python3-avro
+  - sudo apt-get install -y python3-pip
+  - sudo apt-get install -y python3-psycopg2
+  
+  ## configure aws credentials
+  - aws configure set aws_access_key_id "${aws_key}"
+  - aws configure set aws_secret_access_key "${aws_secret}"
+  - aws configure set region "${aws_region}"
+  - aws configure set output_format "json"
+
+users:
+- default
+- name: ${vm_user}
+  gecos: Debian User
+  sudo: ALL=(ALL) NOPASSWD:ALL
+  shell: /bin/bash
+  lock_passwd: true
+  ssh_authorized_keys:
+  - ${ssh_key}
+- name: root
+  lock_passwd: true

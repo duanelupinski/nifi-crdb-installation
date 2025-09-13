@@ -1,0 +1,348 @@
+#cloud-config
+repo_update: true
+package_upgrade: true
+timezone: UTC
+
+write_files:
+  - path: /usr/bin/check-packages.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      
+      packages=$1
+      export IFS=","
+      
+      for package in $${packages}; do
+          name=$(echo $${package} | sed -e 's/^[[:space:]]*//')
+          count=$(dpkg-query -l "$${name}" | grep "$${name}" | wc -l)
+          attempts=0
+          while [[ $${count} -eq 0 && $${attempts} -lt 12 ]]; do
+              ((attempts++))
+              sleep 15
+              sudo apg-get install -y $(echo "$${packages}" | tr ',' ' ')
+              count=$(dpkg-query -l "$${name}" | grep "$${name}" | wc -l)
+          done
+      done
+
+  - path: /usr/bin/mount-cockroach.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      
+      vm_user=$1
+      instance_type=$2
+      
+      count=0
+      attempts=0
+      while [[ $${count} -eq 0 && $${attempts} -lt 24 ]]; do
+          ((attempts++))
+          device_name=/dev/disk/by-id/google-$${instance_type}-proxy
+          count=$(ls -ltrh $${device_name} | wc -l)
+          if [[ $${count} -eq 0 ]] ; then
+              sleep 15
+          fi
+      done
+      
+      sudo mkfs -t xfs $${device_name}
+      sudo mkdir -p /mnt/cockroach
+      sudo mount $${device_name} //mnt/cockroach
+      sudo chown -R $${vm_user}:$${vm_user} /mnt/cockroach
+      echo $${device_name}    /mnt/cockroach    xfs    defaults    0    2 | sudo tee -a /etc/fstab > /dev/null
+  
+  - path: /var/lib/postgresql/userlist.py
+    permissions: '0644'
+    content: |
+      import sys
+      import os
+      import hashlib
+      
+      if __name__ == "__main__":
+        username = sys.argv[1]
+        password = "md5" + hashlib.md5(bytes(sys.argv[2], encoding='utf-8') + bytes(username, encoding='utf-8')).hexdigest()
+        os.system('echo \\"' + username + '\\" \\"' + password + '\\" > /var/lib/postgresql/userlist.txt')
+  
+  - path: /var/lib/postgresql/pgbouncer.template
+    permissions: '0644'
+    content: |
+      [databases]
+      * = host=localhost port=26257 dbname=postgres user=%SERVER%
+      
+      [pgbouncer]
+      listen_port = 4432
+      listen_addr = *
+      user = %CLIENT%
+      unix_socket_dir = %SCRIPT_DIR%/run/%PGID%
+      so_reuseport = 1
+      auth_type = md5
+      auth_file = %SCRIPT_DIR%/userlist.txt
+      admin_users = %CLIENT%
+      logfile = %SCRIPT_DIR%/pgbouncer.%PGID%.log
+      pidfile = %SCRIPT_DIR%/pgbouncer.%PGID%.pid
+      pool_mode = session
+      max_client_conn = 8192
+      default_pool_size = %SIZE%
+      min_pool_size = 10
+      reserve_pool_size = 0
+      reserve_pool_timeout = 0
+      listen_backlog = 4096
+      server_round_robin = 1
+      ignore_startup_parameters = extra_float_digits,options,autoReconnect,ApplicationName,reWriteBatchedInserts
+      
+      # TLS settings
+      server_tls_sslmode = verify-full
+      server_tls_ca_file = %SCRIPT_DIR%/certs/ca.crt
+      server_tls_key_file = %SCRIPT_DIR%/certs/client.%SERVER%.key
+      server_tls_cert_file = %SCRIPT_DIR%/certs/client.%SERVER%.crt
+      
+      # Dangerous timeouts
+      query_wait_timeout = 10
+  
+  - path: /var/lib/postgresql/start-pgbouncer.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      
+      PROG="$(basename "$${0}")"
+      SCRIPT_DIR="$(cd "$(dirname "$${0}")" && pwd)"
+      PGBOUNCER_CLIENT="postgres"
+      PGBOUNCER_SERVER="root"
+      PGBOUNCER_CONNECTIONS=$(( $(echo $(lscpu | egrep '^CPU\(s\)') | cut -f2 -d' ') * 16 ))
+      
+      usage() {
+          echo "USAGE: $${PROG}
+          [--client-account <PGBOUNCER_CLIENT>
+          [--server-account <PGBOUNCER_SERVER>]
+          [--num-connections <PGBOUNCER_CONNECTIONS>]
+      "
+      }
+      
+      help_exit() {
+          usage
+          echo "This is a utility script to create and start pgbouncer instances supporting a single connection pool
+      Options:
+          -c, --client-account PGBOUNCER_CLIENT
+              the username we expect to authenticate from the frontend client application, defaults to postgres
+          -s, --server-account PGBOUNCER_SERVER
+              the username that will be authenticated against the backend database server, defaults to root
+          -n, --num-connections PGBOUNCER_CONNECTIONS
+              the maximum number of connections that will be served by this pgbouncer pool, defaults to 16 times the number of cpus
+          -h, --help
+              output this help message
+      "
+          exit 0
+      }
+      
+      assign() {
+          key="$${1}"
+          value="$${key#*=}"
+          if [[ "$${value}" != "$${key}" ]]; then
+              # key was of the form 'key=value'
+              echo "$${value}"
+              return 0
+          elif [[ "x$${2}" != "x" ]]; then
+              echo "$${2}"
+              return 2
+          else
+              output "Required parameter for '-$${key}' not specified.\n"
+              usage
+              exit 1
+          fi
+          keypos=$keylen
+      }
+      
+      while [[ $# -ge 1 ]]; do
+          key="$${1}"
+          case $key in
+              -*)
+                  keylen=$${#key}
+                  keypos=1
+                  while [[ $keypos -lt $keylen ]]; do
+                      case $${key:$${keypos}} in
+                          c|-client-account)
+                              PGBOUNCER_CLIENT=$(assign "$${key:$${keypos}}" "$${2}")
+                              if [[ $? -eq 2 ]]; then shift; fi
+                              keypos=$keylen
+                          ;;
+                          s|-server-account)
+                              PGBOUNCER_SERVER=$(assign "$${key:$${keypos}}" "$${2}")
+                              if [[ $? -eq 2 ]]; then shift; fi
+                              keypos=$keylen
+                          ;;
+                          n|-num-connections)
+                              PGBOUNCER_CONNECTIONS=$(assign "$${key:$${keypos}}" "$${2}")
+                              if [[ $? -eq 2 ]]; then shift; fi
+                              keypos=$keylen
+                          ;;
+                          h*|-help)
+                              help_exit
+                          ;;
+                          *)
+                              output "Unknown option '$${key:$${keypos}}'.\n"
+                              usage
+                              exit 1
+                          ;;
+                      esac
+                      ((keypos++))
+                  done
+              ;;
+          esac
+          shift
+      done
+      
+      echo "executing $${PROG} from $${SCRIPT_DIR} with:
+          PGBOUNCER_CLIENT=$${PGBOUNCER_CLIENT}
+          PGBOUNCER_SERVER=$${PGBOUNCER_SERVER}
+          PGBOUNCER_CONNECTIONS=$${PGBOUNCER_CONNECTIONS}"
+      
+      grep -q $${PGBOUNCER_CLIENT} $${SCRIPT_DIR}/userlist.txt
+      if [ $? -ne 0 ]; then
+          echo \"$${PGBOUNCER_CLIENT}\" \"\" > $${SCRIPT_DIR}/userlist.txt
+      fi
+      
+      num_files=$(( ($${PGBOUNCER_CONNECTIONS} / 64) + ($${PGBOUNCER_CONNECTIONS} % 64 > 0) ))
+      pool_size=$(( ($${PGBOUNCER_CONNECTIONS} / $${num_files}) + ($${PGBOUNCER_CONNECTIONS} % $${num_files} > 0) ))
+      echo "creating $${num_files} instances with $${pool_size} connections each"
+      
+      for (( i=1; i<=$${num_files}; i++ )); do
+          PGID=$${i}
+          cp $${SCRIPT_DIR}/pgbouncer.template $${SCRIPT_DIR}/pgbouncer.$${PGID}.ini
+          sed -i "s/%PGID%/$${PGID}/g" $${SCRIPT_DIR}/pgbouncer.$${PGID}.ini
+          sed -i "s/%CLIENT%/$${PGBOUNCER_CLIENT}/g" $${SCRIPT_DIR}/pgbouncer.$${PGID}.ini
+          sed -i "s/%SERVER%/$${PGBOUNCER_SERVER}/g" $${SCRIPT_DIR}/pgbouncer.$${PGID}.ini
+          sed -i "s/%SIZE%/$${pool_size}/g" $${SCRIPT_DIR}/pgbouncer.$${PGID}.ini
+          script_dir_esc=$(eval echo $${SCRIPT_DIR} | sed 's/\//\\\//g')
+          sed -i "s/%SCRIPT_DIR%/$${script_dir_esc}/g" $${SCRIPT_DIR}/pgbouncer.$${PGID}.ini
+          mkdir -p $${SCRIPT_DIR}/run/$${PGID}
+      done
+      chown -R postgres:postgres $${SCRIPT_DIR}
+      
+      while true; do
+          for FILE in $${SCRIPT_DIR}/*.ini; do
+              pid=$(ps aux | grep $${FILE} | grep -v 'grep' | awk '{print $2}')
+              if [ -z "$${pid}" ]; then
+                  pgbouncer -d -u postgres $${FILE}
+              fi
+              sleep 5
+          done
+      done
+  
+  - path: /etc/systemd/system/pgbouncer_runner.service
+    content: |
+      [Unit]
+      Description=PGBouncer Runner
+      After=network.target
+
+      [Service]
+      Type=simple
+      ExecStart=/var/lib/postgresql/start-pgbouncer.sh -c postgres -s root
+      Restart=on-failure
+      User=postgres
+      Group=postgres
+
+      [Install]
+      WantedBy=multi-user.target
+
+apt:
+  sources_list: |
+    deb http://deb.debian.org/debian/ $(lsb_release -a | grep Codename: | cut -f2 -d: | xargs) main contrib non-free
+    deb-src http://deb.debian.org/debian/ $(lsb_release -a | grep Codename: | cut -f2 -d: | xargs) main contrib non-free
+
+    deb http://deb.debian.org/debian/ $(lsb_release -a | grep Codename: | cut -f2 -d: | xargs)-updates main contrib non-free
+    deb-src http://deb.debian.org/debian/ $(lsb_release -a | grep Codename: | cut -f2 -d: | xargs)-updates main contrib non-free
+
+    deb http://deb.debian.org/debian-security $(lsb_release -a | grep Codename: | cut -f2 -d: | xargs)-security main
+    deb-src http://deb.debian.org/debian-security $(lsb_release -a | grep Codename: | cut -f2 -d: | xargs)-security main
+  conf: |
+    APT {
+      Get {
+        Assume-Yes "true";
+        Fix-Broken "true";
+      };
+    };
+
+packages:
+  - apt-transport-https
+  - bc
+  - build-essential
+  - ca-certificates
+  - curl
+  - debconf-utils
+  - dnsutils
+  - gnupg2
+  - haproxy
+  - less
+  - net-tools
+  - pgbouncer
+  - postgresql-client
+  - rsync
+  - screen
+  - software-properties-common
+  - vim
+  - wget
+  - xfsprogs
+
+runcmd:
+  # the cdn for our debian distro will throttle requests and depending on the number of instances
+  # we are spinning up concurrently we need to confirm that the packages are successfully installed
+  - /usr/bin/check-packages.sh 'apt-transport-https,bc,build-essential,ca-certificates,curl,debconf-utils,dnsutils,gnupg2,haproxy,less,net-tools,pgbouncer,postgresql-client,rsync,screen,software-properties-common,vim,wget,xfsprogs'
+
+  ## format and mount the filesystem for the cockroach import files
+  - /usr/bin/mount-cockroach.sh ${vm_user} ${instance_type}
+  
+  ## increase the I/O limits on the server for pgbouncer
+  - sudo sed -i '/^# End of file/d' /etc/security/limits.conf
+  - sudo sed -i '/^\* hard nofile /{h;s/nofile .*/nofile 50000/};$${x;/^$/{s//\* hard nofile 50000/;H};x}' /etc/security/limits.conf
+  - sudo sed -i '/^\* soft nofile /{h;s/nofile .*/nofile 50000/};$${x;/^$/{s//\* soft nofile 50000/;H};x}' /etc/security/limits.conf
+  - sudo sed -i '/^\* hard nproc /{h;s/nproc .*/nproc 10000/};$${x;/^$/{s//\* hard nproc 10000/;H};x}' /etc/security/limits.conf
+  - sudo sed -i '/^\* soft nproc /{h;s/nproc .*/nproc 10000/};$${x;/^$/{s//\* soft nproc 10000/;H};x}' /etc/security/limits.conf
+  - echo "# End of file" | sudo tee -a /etc/security/limits.conf > /dev/null
+  - sudo sysctl -w net.ipv4.ip_local_port_range="10000 65000"
+  - sudo sed -i '/^vm.swappiness =/{h;s/=.*/= 0/};$${x;/^$/{s//vm.swappiness = 0/;H};x}' /etc/sysctl.conf
+  - sudo sysctl --system
+  
+  ## the following will update pgbouncer to version 1.17
+  - sudo apt-get update
+  - sudo apt-get install -y libevent-dev
+  - sudo apt-get install -y pkg-config
+  - sudo apt-get install -y libssl-dev
+  - wget https://www.pgbouncer.org/downloads/files/1.17.0/pgbouncer-1.17.0.tar.gz
+  - tar -xvf pgbouncer-1.17.0.tar.gz
+  - rm pgbouncer-1.17.0.tar.gz
+  - cd pgbouncer-1.17.0/
+  - ./configure --prefix=/usr/local
+  - sudo make
+  - sudo make install
+  
+  ## generate the configuration files for postgres and start pgbouncer
+  - sudo chown postgres:postgres /var/lib/postgresql/userlist.py
+  - sudo python3 /var/lib/postgresql/userlist.py postgres postgres
+  - sudo chown postgres:postgres /var/lib/postgresql/userlist.txt
+  - sudo chown postgres:postgres /var/lib/postgresql/pgbouncer.template
+  - sudo systemctl daemon-reload
+  - sudo systemctl enable pgbouncer_runner
+  - sudo systemctl start pgbouncer_runner
+  
+  ## download the cockroach binary
+  - curl https://binaries.cockroachdb.com/cockroach-v23.1.11.linux-${architecture}.tgz | tar -xz
+  - sudo cp -i cockroach-v23.1.11.linux-${architecture}/cockroach /usr/local/bin/
+  
+  ## install python dependencies
+  - sudo apt-get update
+  - sudo apt-get install -y libpq-dev python-dev-is-python3
+  - sudo apt-get install -y python3-avro
+  - sudo apt-get install -y python3-pip
+  - sudo apt-get install -y python3-psycopg2
+  
+  ## configure gce credentials (if not done automatically)
+
+users:
+- default
+- name: ${vm_user}
+  gecos: Debian User
+  sudo: ALL=(ALL) NOPASSWD:ALL
+  shell: /bin/bash
+  lock_passwd: true
+  ssh_authorized_keys:
+  - ${ssh_key}
+- name: root
+  lock_passwd: true
