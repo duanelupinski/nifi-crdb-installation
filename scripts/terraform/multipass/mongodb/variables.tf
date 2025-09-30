@@ -28,8 +28,20 @@ variable "image" {
   default     = "22.04" # Ubuntu Jammy
 }
 
-variable "cloud_init_file" {
-  description = "Path to cloud-init file, relative to this module"
+variable "admin_user" {
+  description = "Initial MongoDB admin username."
   type        = string
-  default     = "cloud-init/mongo-vm.yaml"
+  default     = "admin_user"
+}
+
+variable "admin_pass" {
+  description = "Initial MongoDB admin password."
+  type        = string
+  default     = "Change_Default_Password123!"
+  sensitive   = true
+}
+
+variable "cert_base_dir" {
+  description = "Absolute path to the certs folder"
+  type        = string
 }

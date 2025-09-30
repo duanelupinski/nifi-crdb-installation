@@ -1,0 +1,267 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/canonical/cloud-init/main/cloudinit/config/schemas/versions.schema.cloud-config.json
+# cloud-config
+package_update: true
+package_upgrade: false
+
+packages:
+  - ca-certificates
+  - gnupg
+  - curl
+  - jq
+  - ufw
+
+write_files:
+  # Base64 payloads for any files Terraform found (may be empty strings)
+  - path: /opt/provision/certs/_ca/ca.crt.b64
+    permissions: "0644"
+    encoding: b64
+    content: "${ca_crt_b64}"
+  - path: /opt/provision/certs/_ca/ca.key.b64
+    permissions: "0644"
+    encoding: b64
+    content: "${ca_key_b64}"
+  - path: /opt/provision/certs/_ca/ca.srl.b64
+    permissions: "0644"
+    encoding: b64
+    content: "${ca_srl_b64}"
+  - path: /opt/provision/certs/${vm_name}/mongo.cnf.b64
+    permissions: "0644"
+    encoding: b64
+    content: "${srv_cnf_b64}"
+  - path: /opt/provision/certs/${vm_name}/mongo.crt.b64
+    permissions: "0644"
+    encoding: b64
+    content: "${srv_crt_b64}"
+  - path: /opt/provision/certs/${vm_name}/mongo.csr.b64
+    permissions: "0644"
+    encoding: b64
+    content: "${srv_csr_b64}"
+  - path: /opt/provision/certs/${vm_name}/mongo.key.b64
+    permissions: "0644"
+    encoding: b64
+    content: "${srv_key_b64}"
+  - path: /opt/provision/certs/${vm_name}/mongo.pem.b64
+    permissions: "0644"
+    encoding: b64
+    content: "${srv_pem_b64}"
+
+  # mongod.conf (TLS+auth+rs)
+  - path: /etc/mongod.conf
+    owner: root:root
+    permissions: "0644"
+    content: |
+      systemLog:
+        destination: file
+        path: /var/log/mongodb/mongod.log
+        logAppend: true
+
+      storage:
+        dbPath: /var/lib/mongodb
+
+      processManagement:
+        fork: false
+
+      net:
+        port: 27017
+        bindIp: 0.0.0.0
+        tls:
+          mode: requireTLS
+          certificateKeyFile: /etc/ssl/mongo/server.pem
+          CAFile: /etc/ssl/mongo/ca.crt
+          allowConnectionsWithoutCertificates: true
+
+      security:
+        authorization: enabled
+        clusterAuthMode: keyFile
+        keyFile: /etc/mongo-keyfile
+
+      replication:
+        replSetName: rs0
+  
+  - path: /opt/provision/bootstrap-admin.js
+    owner: root:root
+    permissions: "0600"
+    content: |
+      (function () {
+        const u = "${admin_user}";
+        const p = "${admin_pass}";
+        const adm = db.getSiblingDB("admin");
+
+        // 1) If the creds already work, nothing to do.
+        try {
+          if (adm.auth(u, p)) { print("[bootstrap-admin] auth-ok"); return; }
+        } catch (e) { /* ignore and try create */ }
+
+        // 2) Try to create via localhost exception.
+        try {
+          adm.createUser({ user: u, pwd: p, roles: [ { role: "root", db: "admin" } ] });
+          print("[bootstrap-admin] user-created");
+          return;
+        } catch (e) {
+          // 3) Expected outcomes we should not fail on:
+          if (e.code === 13 || e.codeName === "Unauthorized") {
+            print("[bootstrap-admin] unauthorized; users already initialized; leaving as-is");
+            return;
+          }
+          if (e.code === 11000 || e.codeName === "DuplicateKey") {
+            print("[bootstrap-admin] user-exists");
+            return;
+          }
+          // Anything else is unexpected
+          throw e;
+        }
+      })();
+
+  # THP + sysctl + limits
+  - path: /etc/systemd/system/disable-thp.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Disable Transparent Huge Pages (THP)
+      After=sysinit.target local-fs.target
+      [Service]
+      Type=oneshot
+      ExecStart=/bin/sh -c 'echo never > /sys/kernel/mm/transparent_hugepage/enabled || true'
+      ExecStart=/bin/sh -c 'echo never > /sys/kernel/mm/transparent_hugepage/defrag || true'
+      RemainAfterExit=yes
+      [Install]
+      WantedBy=multi-user.target
+
+  - path: /etc/sysctl.d/99-mongodb.conf
+    permissions: "0644"
+    content: |
+      vm.max_map_count=262144
+      fs.file-max=1000000
+
+  - path: /etc/security/limits.d/mongodb.conf
+    permissions: "0644"
+    content: |
+      mongodb soft nproc 64000
+      mongodb hard nproc 64000
+      mongodb soft nofile 64000
+      mongodb hard nofile 64000
+
+runcmd:
+  - [ bash, -lc, 'set -euxo pipefail' ]
+
+  # MongoDB 7.0 repo (Ubuntu 22.04)
+  - [ bash, -lc, 'curl -fsSL https://pgp.mongodb.com/server-7.0.asc | gpg --dearmor -o /usr/share/keyrings/mongodb-server-7.0.gpg' ]
+  - [ bash, -lc, "echo 'deb [ signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse' > /etc/apt/sources.list.d/mongodb-org-7.0.list" ]
+  - [ bash, -lc, 'apt-get update -y && apt-get install -y mongodb-org' ]
+  - [ bash, -lc, 'systemctl stop mongod || true' ]
+
+  # TLS: use provided certs if present; otherwise create what's needed
+  - |
+    bash -lc '
+      set -euo pipefail
+      HOST="$(hostname -f || hostname)"
+      IP="$(hostname -I | awk "{print \$1}")"
+      TLS_DIR="/etc/ssl/mongo"
+      SRC="/opt/provision/certs"
+      SRV_DIR="$SRC/${vm_name}"
+
+      mkdir -p "$TLS_DIR"
+
+      # just copy: files under SRC are already decoded by cloud-init (even though they end with .b64)
+      cp_if() { [ -s "$1" ] && cp -f "$1" "$2" || true; }
+
+      cp_if "$SRC/_ca/ca.crt.b64"    "$TLS_DIR/ca.crt"
+      cp_if "$SRC/_ca/ca.key.b64"    "$TLS_DIR/ca.key"   # optional
+
+      cp_if "$SRV_DIR/mongo.pem.b64" "$TLS_DIR/server.pem"
+      cp_if "$SRV_DIR/mongo.crt.b64" "$TLS_DIR/server.crt"
+      cp_if "$SRV_DIR/mongo.key.b64" "$TLS_DIR/server.key"
+
+      # build PEM once if needed
+      if [ ! -s "$TLS_DIR/server.pem" ] && [ -s "$TLS_DIR/server.crt" ] && [ -s "$TLS_DIR/server.key" ]; then
+        cat "$TLS_DIR/server.crt" "$TLS_DIR/server.key" > "$TLS_DIR/server.pem"
+      fi
+
+      HAVE_SERVER=$([ -s "$TLS_DIR/server.pem" ] && echo 1 || echo 0)
+      HAVE_CA_CRT=$([ -s "$TLS_DIR/ca.crt" ] && echo 1 || echo 0)
+      HAVE_CA_KEY=$([ -s "$TLS_DIR/ca.key" ] && echo 1 || echo 0)
+
+      echo "[mongo-provision] have server.pem=$HAVE_SERVER ca.crt=$HAVE_CA_CRT ca.key=$HAVE_CA_KEY"
+
+      if [ "$HAVE_SERVER" = 1 ]; then
+        echo "[mongo-provision] Using provided server certificate."
+      elif [ "$HAVE_CA_CRT" = 1 ] && [ "$HAVE_CA_KEY" = 1 ]; then
+        echo "[mongo-provision] Signing server cert with provided CA."
+        openssl genrsa -out "$TLS_DIR/server.key" 4096
+        openssl req -new -key "$TLS_DIR/server.key" -subj "/CN=$HOST" \
+          -addext "subjectAltName=DNS:$HOST,DNS:localhost,IP:127.0.0.1,IP:$IP" \
+          -out "$TLS_DIR/server.csr"
+        openssl x509 -req -in "$TLS_DIR/server.csr" -CA "$TLS_DIR/ca.crt" -CAkey "$TLS_DIR/ca.key" -CAcreateserial \
+          -out "$TLS_DIR/server.crt" -sha256 -days 825 \
+          -extfile <(printf "keyUsage=digitalSignature,keyEncipherment\nextendedKeyUsage=serverAuth\nsubjectAltName=DNS:%s,DNS:localhost,IP:127.0.0.1,IP:%s\n" "$HOST" "$IP")
+        cat "$TLS_DIR/server.crt" "$TLS_DIR/server.key" > "$TLS_DIR/server.pem"
+      elif [ "$HAVE_CA_CRT" = 1 ] && [ "$HAVE_CA_KEY" = 0 ]; then
+        echo "[mongo-provision] ERROR: ca.crt present but ca.key missing and no server cert provided. Aborting to avoid replacing your CA." >&2
+        exit 20
+      else
+        echo "[mongo-provision] No inputs; generating local CA + server cert."
+        openssl genrsa -out "$TLS_DIR/ca.key" 4096
+        openssl req -x509 -new -nodes -key "$TLS_DIR/ca.key" -sha256 -days 3650 -out "$TLS_DIR/ca.crt" -subj "/CN=Mongo Server CA"
+        openssl genrsa -out "$TLS_DIR/server.key" 4096
+        openssl req -new -key "$TLS_DIR/server.key" -subj "/CN=$HOST" \
+          -addext "subjectAltName=DNS:$HOST,DNS:localhost,IP:127.0.0.1,IP:$IP" \
+          -out "$TLS_DIR/server.csr"
+        openssl x509 -req -in "$TLS_DIR/server.csr" -CA "$TLS_DIR/ca.crt" -CAkey "$TLS_DIR/ca.key" -CAcreateserial \
+          -out "$TLS_DIR/server.crt" -sha256 -days 825 \
+          -extfile <(printf "keyUsage=digitalSignature,keyEncipherment\nextendedKeyUsage=serverAuth\nsubjectAltName=DNS:%s,DNS:localhost,IP:127.0.0.1,IP:%s\n" "$HOST" "$IP")
+        cat "$TLS_DIR/server.crt" "$TLS_DIR/server.key" > "$TLS_DIR/server.pem"
+      fi
+
+      chmod 600 "$TLS_DIR/server.key" "$TLS_DIR/server.pem" 2>/dev/null || true
+      chmod 600 "$TLS_DIR/ca.key" 2>/dev/null || true
+      chmod 644 "$TLS_DIR/server.crt" "$TLS_DIR/ca.crt"
+    '
+
+  # create mongodb user and chown files
+  - |
+    bash -lc '
+      # create group + user if missing (idempotent)
+      sudo getent group mongodb >/dev/null || sudo groupadd --system mongodb
+      sudo id -u mongodb >/dev/null 2>&1 || sudo useradd --system --no-create-home \
+        --shell /usr/sbin/nologin --gid mongodb mongodb
+      install -d -o mongodb -g mongodb -m 0755 /var/lib/mongodb /var/log/mongodb
+      chown mongodb:mongodb /etc/ssl/mongo/server.key /etc/ssl/mongo/server.pem
+      chmod 600 /etc/ssl/mongo/server.key /etc/ssl/mongo/server.pem
+    '
+
+  # keyFile for cluster auth (single node today; future-proofs multi-node)
+  - [ bash, -lc, 'KEYFILE=/etc/mongo-keyfile; [ -f "$KEYFILE" ] || (umask 177 && head -c 756 /dev/urandom | base64 > "$KEYFILE"); chown mongodb:mongodb "$KEYFILE"; chmod 600 "$KEYFILE"' ]
+
+  - [ bash, -lc, 'sysctl --system || true' ]
+  - [ bash, -lc, 'systemctl daemon-reload && systemctl enable --now disable-thp.service || true' ]
+  - [ bash, -lc, 'systemctl enable --now mongod' ]
+
+  # Wait for port 27017
+  - [ bash, -lc, 'for i in $(seq 1 30); do ss -lnt | grep -q ":27017 " && break || sleep 1; done' ]
+
+  # Initiate or fix RS host to the VM IP
+  - |
+    bash -lc '
+      IP="$(hostname -I | awk "{print \$1}")"
+      if ! mongosh --quiet --tls --tlsCAFile /etc/ssl/mongo/ca.crt --eval "rs.status().ok" | grep -q "^1$"; then
+        mongosh --quiet --tls --tlsCAFile /etc/ssl/mongo/ca.crt --eval "rs.initiate({_id:\"rs0\",members:[{_id:0,host:\"$IP:27017\"}]})"
+      else
+        CUR=$(mongosh --quiet --tls --tlsCAFile /etc/ssl/mongo/ca.crt --eval "cfg=rs.conf(); print(cfg.members[0].host)")
+        [ "$CUR" = "$IP:27017" ] || mongosh --quiet --tls --tlsCAFile /etc/ssl/mongo/ca.crt --eval "cfg=rs.conf(); cfg.members[0].host=\"$IP:27017\"; rs.reconfig(cfg,{force:true})"
+      fi
+    '
+  
+  - |
+    bash -lc '
+      set -euo pipefail
+      set +H  # allow "!" in passwords safely
+      mongosh --quiet --tls --tlsCAFile /etc/ssl/mongo/ca.crt --file /opt/provision/bootstrap-admin.js || true
+    '
+
+  # Optional firewall
+  - |
+    bash -lc '
+      if command -v ufw >/dev/null 2>&1; then
+        ufw allow 27017 || true
+      fi
+    '

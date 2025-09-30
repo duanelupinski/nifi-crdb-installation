@@ -1,15 +1,81 @@
+#####################
+# Paths & file loads
+#####################
 locals {
-  cloud_init_path = abspath("${path.module}/${var.cloud_init_file}")
+  default_cert_base_dir = abspath("${path.root}/../../../../.private/mongo-certs")
+
+  cert_base_dir = length(trimspace(var.cert_base_dir)) > 0 ? abspath(var.cert_base_dir) : local.default_cert_base_dir
+
+  srv_dir = "${local.cert_base_dir}/${var.name}"
+
+  # Read files if they exist; otherwise empty string
+  ca_crt = try(file("${local.cert_base_dir}/_ca/ca.crt"), "")
+  ca_key = try(file("${local.cert_base_dir}/_ca/ca.key"), "")
+  ca_srl = try(file("${local.cert_base_dir}/_ca/ca.srl"), "")
+
+  srv_cnf = try(file("${local.srv_dir}/mongo.cnf"), "")
+  srv_crt = try(file("${local.srv_dir}/mongo.crt"), "")
+  srv_csr = try(file("${local.srv_dir}/mongo.csr"), "")
+  srv_key = try(file("${local.srv_dir}/mongo.key"), "")
+  srv_pem = try(file("${local.srv_dir}/mongo.pem"), "")
+
+  cloud_init_payload = templatefile("${path.module}/cloud-init/mongo-vm.tpl.yaml", {
+    vm_name     = var.name
+    admin_user  = var.admin_user
+    admin_pass  = var.admin_pass
+
+    ca_crt_b64  = base64encode(local.ca_crt)
+    ca_key_b64  = base64encode(local.ca_key)
+    ca_srl_b64  = base64encode(local.ca_srl)
+
+    srv_cnf_b64 = base64encode(local.srv_cnf)
+    srv_crt_b64 = base64encode(local.srv_crt)
+    srv_csr_b64 = base64encode(local.srv_csr)
+    srv_key_b64 = base64encode(local.srv_key)
+    srv_pem_b64 = base64encode(local.srv_pem)
+  })
+
+  cloud_init_outdir = "${path.module}/cloud-init/.rendered"
+  cloud_init_file   = "${local.cloud_init_outdir}/${var.name}-cloud-init.yaml"
+
+  # Trigger hash of the actual payload string (no need to read a file)
+  cloud_payload_sha = sha256(local.cloud_init_payload)
 }
 
+#####################
+# Materialize the cloud-init to disk (Multipass needs a file path)
+#####################
+resource "null_resource" "render_cloud_init" {
+  triggers = {
+    payload_sha = local.cloud_payload_sha
+    out_path    = local.cloud_init_file
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      set -euo pipefail
+      mkdir -p "${local.cloud_init_outdir}"
+      cat > "${local.cloud_init_file}" <<'EOF'
+${local.cloud_init_payload}
+EOF
+      echo "Wrote ${local.cloud_init_file}"
+    EOT
+    interpreter = ["/bin/bash", "-lc"]
+  }
+}
+
+#####################
+# Create / Destroy VM via Multipass CLI
+#####################
 resource "null_resource" "vm" {
   triggers = {
-    name       = var.name
-    cpus       = tostring(var.cpus)
-    memory     = var.memory
-    disk       = var.disk
-    image      = var.image
-    cloud_hash = filesha256(local.cloud_init_path)
+    name          = var.name
+    cpus          = tostring(var.cpus)
+    memory        = var.memory
+    disk          = var.disk
+    image         = var.image
+    payload_sha   = local.cloud_payload_sha   # re-run create step if payload changes
+    cloudinitpath = local.cloud_init_file
   }
 
   # Create VM
@@ -25,7 +91,7 @@ resource "null_resource" "vm" {
         --cpus ${self.triggers.cpus} \
         --mem ${self.triggers.memory} \
         --disk ${self.triggers.disk} \
-        --cloud-init "${local.cloud_init_path}"
+        --cloud-init "${self.triggers.cloudinitpath}"
       echo "Launched ${self.triggers.name}"
     EOT
     interpreter = ["/bin/bash", "-lc"]
@@ -46,9 +112,13 @@ resource "null_resource" "vm" {
     EOT
     interpreter = ["/bin/bash", "-lc"]
   }
+
+  depends_on = [null_resource.render_cloud_init]
 }
 
+#####################
 # Grab the instance IP for outputs
+#####################
 data "external" "vm_ip" {
   depends_on = [null_resource.vm]
   program    = ["/bin/bash", "-lc", <<-EOT
