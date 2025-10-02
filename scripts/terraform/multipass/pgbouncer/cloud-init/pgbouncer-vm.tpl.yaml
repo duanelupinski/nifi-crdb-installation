@@ -1,0 +1,445 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/canonical/cloud-init/main/cloudinit/config/schemas/versions.schema.cloud-config.json
+# cloud-config
+package_update: true
+package_upgrade: false
+
+packages:
+  - ca-certificates
+  - gnupg
+  - curl
+  - jq
+  - ufw
+  - pgbouncer
+  - postgresql-client
+  - python3-pip
+  - python3-venv
+
+  # - apt-transport-https
+  # - bc
+  # - build-essential
+  # - debconf-utils
+  # - dnsutils
+  # - gnupg2
+  # - haproxy
+  # - less
+  # - net-tools
+  # - rsync
+  # - screen
+  # - software-properties-common
+  # - vim
+  # - wget
+  # - xfsprogs
+
+write_files:
+  # Base64 payloads for any files Terraform found (may be empty strings)
+  - path: /opt/provision/certs/_ca/ca.crt.b64
+    permissions: "0644"
+    encoding: b64
+    content: "${ca_crt_b64}"
+  - path: /opt/provision/certs/_ca/ca.key.b64
+    permissions: "0644"
+    encoding: b64
+    content: "${ca_key_b64}"
+  - path: /opt/provision/certs/_ca/ca.srl.b64
+    permissions: "0644"
+    encoding: b64
+    content: "${ca_srl_b64}"
+  - path: /opt/provision/certs/${vm_name}/pgbouncer.cnf.b64
+    permissions: "0644"
+    encoding: b64
+    content: "${srv_cnf_b64}"
+  - path: /opt/provision/certs/${vm_name}/pgbouncer.crt.b64
+    permissions: "0644"
+    encoding: b64
+    content: "${srv_crt_b64}"
+  - path: /opt/provision/certs/${vm_name}/pgbouncer.csr.b64
+    permissions: "0644"
+    encoding: b64
+    content: "${srv_csr_b64}"
+  - path: /opt/provision/certs/${vm_name}/pgbouncer.key.b64
+    permissions: "0644"
+    encoding: b64
+    content: "${srv_key_b64}"
+  - path: /opt/provision/certs/${vm_name}/pgbouncer.pem.b64
+    permissions: "0644"
+    encoding: b64
+    content: "${srv_pem_b64}"
+  - path: /opt/provision/certs/${vm_name}/root.crt.b64
+    permissions: "0644"
+    encoding: b64
+    content: "${cr_crt_b64}"
+
+  - path: /usr/bin/check-packages.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      
+      packages=$1
+      export IFS=","
+      
+      for package in $${packages}; do
+          name=$(echo $${package} | sed -e 's/^[[:space:]]*//')
+          count=$(dpkg-query -l "$${name}" | grep "$${name}" | wc -l)
+          attempts=0
+          while [[ $${count} -eq 0 && $${attempts} -lt 12 ]]; do
+              ((attempts++))
+              sleep 15
+              sudo apg-get install -y $(echo "$${packages}" | tr ',' ' ')
+              count=$(dpkg-query -l "$${name}" | grep "$${name}" | wc -l)
+          done
+      done
+  
+  - path: /var/lib/postgresql/userlist.py
+    permissions: '0644'
+    content: |
+      #!/usr/bin/env python3
+      import argparse, os, tempfile
+      import psycopg2
+
+      def fetch_scram_secret(db_url: str, username: str) -> str:
+          """Return the SCRAM-SHA-256 verifier for `username` from CockroachDB."""
+          with psycopg2.connect(db_url) as conn:
+              with conn.cursor() as cur:
+                  # Get readable SCRAM string instead of \x... hex bytes
+                  cur.execute("SET bytea_output = 'escape'")
+                  cur.execute('SELECT "hashedPassword" FROM system.users WHERE username = %s', (username,))
+                  row = cur.fetchone()
+                  if not row or row[0] is None:
+                      raise SystemExit(f"User not found or no hashedPassword: {username}")
+
+                  val = row[0]
+                  # psycopg2 returns bytea as memoryview/bytes; normalize to str
+                  if isinstance(val, memoryview):  # psycopg2 often returns memoryview
+                      val = bytes(val)
+                  if isinstance(val, (bytes, bytearray)):
+                      # Could be b'\\x...' (hex) or already the SCRAM string bytes
+                      if val.startswith(b'\\x'):
+                          scram = bytes.fromhex(val[2:].decode('ascii')).decode('ascii')
+                      else:
+                          scram = val.decode('ascii', 'strict')
+                  else:
+                      s = str(val)
+                      scram = bytes.fromhex(s[2:]).decode('ascii') if s.startswith('\\x') else s
+
+                  if not scram.startswith("SCRAM-SHA-256$"):
+                      raise SystemExit("Fetched value is not a SCRAM-SHA-256 verifier.")
+                  return scram
+
+      def update_userlist(userlist_path: str, username: str, scram: str) -> None:
+          """Replace or append the user’s entry in userlist.txt safely."""
+          quoted = f"\"{username}\" \"{scram}\""
+          lines = []
+          found = False
+
+          if os.path.exists(userlist_path):
+              with open(userlist_path, "r", encoding="utf-8") as f:
+                  for line in f:
+                      if line.lstrip().startswith(f"\"{username}\" "):
+                          lines.append(quoted + "\n")
+                          found = True
+                      else:
+                          lines.append(line)
+          if not found:
+              lines.append(quoted + "\n")
+
+          # Atomic write with 0600 perms
+          dname = os.path.dirname(os.path.abspath(userlist_path)) or "."
+          with tempfile.NamedTemporaryFile("w", dir=dname, delete=False, encoding="utf-8") as tmp:
+              tmp.write("".join(lines))
+              tmp_name = tmp.name
+          os.chmod(tmp_name, 0o600)
+          os.replace(tmp_name, userlist_path)
+
+      def main():
+          ap = argparse.ArgumentParser(description="Sync SCRAM secret from CockroachDB into PgBouncer userlist.txt")
+          ap.add_argument("--username", required=True, help="SQL username to fetch")
+          ap.add_argument("--password", required=True, help="CockroachDB credentials for user")
+          ap.add_argument("--hostname", required=True, help="CockroachDB proxy host for connections")
+          ap.add_argument("--port", required=True, help="CockroachDB port for connections")
+          ap.add_argument("--database", required=True, help="CockroachDB database for connections")
+          ap.add_argument("--root_crt", required=True, help="CockroachDB root cert used for connections")
+          args = ap.parse_args()
+
+          url = f"postgresql://{args.username}:{args.password}@{args.hostname}:{args.port}/{args.database}?sslmode=verify-full&sslrootcert={args.root_crt}"
+          scram = fetch_scram_secret(url, args.username)
+          userlist = "/var/lib/postgresql/userlist.txt"
+          update_userlist(userlist, args.username, scram)
+          print(f"Updated {args.userlist} with SCRAM for user {args.username}")
+
+      if __name__ == "__main__":
+          main()
+  
+  - path: /var/lib/postgresql/pgbouncer.template
+    permissions: '0644'
+    content: |
+      [databases]
+      * = host=${crdb_host} port=${crdb_port} dbname=${crdb_db}
+      
+      [pgbouncer]
+      listen_port = ${crdb_port}
+      listen_addr = *
+      unix_socket_dir = %SCRIPT_DIR%/run/%PGID%
+      so_reuseport = 1
+      auth_type = scram-sha-256
+      auth_file = %SCRIPT_DIR%/userlist.txt
+      admin_users = ${admin_user}
+      logfile = %SCRIPT_DIR%/pgbouncer.%PGID%.log
+      pidfile = %SCRIPT_DIR%/pgbouncer.%PGID%.pid
+      pool_mode = transaction
+      max_client_conn = 8192
+      default_pool_size = %SIZE%
+      min_pool_size = 10
+      reserve_pool_size = 0
+      reserve_pool_timeout = 0
+      listen_backlog = 4096
+      server_round_robin = 1
+      ignore_startup_parameters = extra_float_digits,options,autoReconnect,ApplicationName,reWriteBatchedInserts
+      
+      # TLS settings
+      client_tls_sslmode   = require
+      client_tls_cert_file = %SCRIPT_DIR%/certs/pgbouncer.crt
+      client_tls_key_file  = %SCRIPT_DIR%/certs/pgbouncer.key
+      server_tls_sslmode   = verify-full
+      server_tls_ca_file   = %SCRIPT_DIR%/certs/root.crt
+      
+      # Dangerous timeouts
+      query_wait_timeout = 10
+  
+  - path: /var/lib/postgresql/start-pgbouncer.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      
+      PROG="$(basename "$${0}")"
+      SCRIPT_DIR="$(cd "$(dirname "$${0}")" && pwd)"
+      PGBOUNCER_CONNECTIONS=$(( $(echo $(lscpu | egrep '^CPU\(s\)') | cut -f2 -d' ') * 32 ))
+      
+      usage() {
+          echo "USAGE: $${PROG}
+          [--num-connections <PGBOUNCER_CONNECTIONS>]
+      "
+      }
+      
+      help_exit() {
+          usage
+          echo "This is a utility script to create and start pgbouncer instances supporting a single connection pool
+      Options:
+          -n, --num-connections PGBOUNCER_CONNECTIONS
+              the maximum number of connections that will be served by this pgbouncer pool, defaults to 16 times the number of cpus
+          -h, --help
+              output this help message
+      "
+          exit 0
+      }
+      
+      assign() {
+          key="$${1}"
+          value="$${key#*=}"
+          if [[ "$${value}" != "$${key}" ]]; then
+              # key was of the form 'key=value'
+              echo "$${value}"
+              return 0
+          elif [[ "x$${2}" != "x" ]]; then
+              echo "$${2}"
+              return 2
+          else
+              output "Required parameter for '-$${key}' not specified.\n"
+              usage
+              exit 1
+          fi
+          keypos=$keylen
+      }
+      
+      while [[ $# -ge 1 ]]; do
+          key="$${1}"
+          case $key in
+              -*)
+                  keylen=$${#key}
+                  keypos=1
+                  while [[ $keypos -lt $keylen ]]; do
+                      case $${key:$${keypos}} in
+                          n|-num-connections)
+                              PGBOUNCER_CONNECTIONS=$(assign "$${key:$${keypos}}" "$${2}")
+                              if [[ $? -eq 2 ]]; then shift; fi
+                              keypos=$keylen
+                          ;;
+                          h*|-help)
+                              help_exit
+                          ;;
+                          *)
+                              output "Unknown option '$${key:$${keypos}}'.\n"
+                              usage
+                              exit 1
+                          ;;
+                      esac
+                      ((keypos++))
+                  done
+              ;;
+          esac
+          shift
+      done
+      
+      echo "executing $${PROG} from $${SCRIPT_DIR} with:
+          PGBOUNCER_CONNECTIONS=$${PGBOUNCER_CONNECTIONS}"
+      
+      num_files=$(( ($${PGBOUNCER_CONNECTIONS} / 64) + ($${PGBOUNCER_CONNECTIONS} % 64 > 0) ))
+      pool_size=$(( ($${PGBOUNCER_CONNECTIONS} / $${num_files}) + ($${PGBOUNCER_CONNECTIONS} % $${num_files} > 0) ))
+      echo "creating $${num_files} instances with $${pool_size} connections each"
+      
+      for (( i=1; i<=$${num_files}; i++ )); do
+          PGID=$${i}
+          cp $${SCRIPT_DIR}/pgbouncer.template $${SCRIPT_DIR}/pgbouncer.$${PGID}.ini
+          sed -i "s/%PGID%/$${PGID}/g" $${SCRIPT_DIR}/pgbouncer.$${PGID}.ini
+          sed -i "s/%SIZE%/$${pool_size}/g" $${SCRIPT_DIR}/pgbouncer.$${PGID}.ini
+          script_dir_esc=$(eval echo $${SCRIPT_DIR} | sed 's/\//\\\//g')
+          sed -i "s/%SCRIPT_DIR%/$${script_dir_esc}/g" $${SCRIPT_DIR}/pgbouncer.$${PGID}.ini
+          mkdir -p $${SCRIPT_DIR}/run/$${PGID}
+      done
+      chown -R postgres:postgres $${SCRIPT_DIR}
+      
+      while true; do
+          for FILE in $${SCRIPT_DIR}/*.ini; do
+              pid=$(ps aux | grep $${FILE} | grep -v 'grep' | awk '{print $2}')
+              if [ -z "$${pid}" ]; then
+                  pgbouncer -d -u postgres $${FILE}
+              fi
+              sleep 10
+          done
+      done
+  
+  - path: /etc/systemd/system/pgbouncer_runner.service
+    content: |
+      [Unit]
+      Description=PGBouncer Runner
+      After=network.target
+
+      [Service]
+      Type=simple
+      ExecStart=/var/lib/postgresql/start-pgbouncer.sh -n 128
+      Restart=on-failure
+      User=postgres
+      Group=postgres
+
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  - [ bash, -lc, 'set -euxo pipefail' ]
+
+  # the cdn for our ubuntu distro may throttle requests and depending on the number of instances
+  # we are spinning up concurrently we need to confirm that the packages are successfully installed
+  - /usr/bin/check-packages.sh 'ca-certificates,gnupg,curl,jq, ufw,pgbouncer,postgresql-client'
+  
+  ## increase the I/O limits on the server for pgbouncer
+  - sudo sed -i '/^# End of file/d' /etc/security/limits.conf
+  - sudo sed -i '/^\* hard nofile /{h;s/nofile .*/nofile 50000/};$${x;/^$/{s//\* hard nofile 50000/;H};x}' /etc/security/limits.conf
+  - sudo sed -i '/^\* soft nofile /{h;s/nofile .*/nofile 50000/};$${x;/^$/{s//\* soft nofile 50000/;H};x}' /etc/security/limits.conf
+  - sudo sed -i '/^\* hard nproc /{h;s/nproc .*/nproc 10000/};$${x;/^$/{s//\* hard nproc 10000/;H};x}' /etc/security/limits.conf
+  - sudo sed -i '/^\* soft nproc /{h;s/nproc .*/nproc 10000/};$${x;/^$/{s//\* soft nproc 10000/;H};x}' /etc/security/limits.conf
+  - echo "# End of file" | sudo tee -a /etc/security/limits.conf > /dev/null
+  - sudo sysctl -w net.ipv4.ip_local_port_range="10000 65000"
+  - sudo sed -i '/^vm.swappiness =/{h;s/=.*/= 0/};$${x;/^$/{s//vm.swappiness = 0/;H};x}' /etc/sysctl.conf
+  - sudo sysctl --system
+
+  # TLS: use provided certs if present; otherwise create what's needed
+  - |
+    bash -lc '
+      set -euo pipefail
+      HOST="$(hostname -f || hostname)"
+      IP="$(hostname -I | awk "{print \$1}")"
+      TLS_DIR="/var/lib/postgresql/certs"
+      SRC="/opt/provision/certs"
+
+      mkdir -p "$TLS_DIR"
+
+      # just copy: files under SRC are already decoded by cloud-init (even though they end with .b64)
+      cp_if() { [ -s "$1" ] && cp -f "$1" "$2" || true; }
+
+      cp_if "$SRC/_ca/ca.crt.b64"    "$TLS_DIR/ca.crt"
+      cp_if "$SRC/_ca/ca.key.b64"    "$TLS_DIR/ca.key"
+
+      cp_if "$SRC/${vm_name}/pgbouncer.pem.b64" "$TLS_DIR/pgbouncer.pem"
+      cp_if "$SRC/${vm_name}/pgbouncer.crt.b64" "$TLS_DIR/pgbouncer.crt"
+      cp_if "$SRC/${vm_name}/pgbouncer.key.b64" "$TLS_DIR/pgbouncer.key"
+
+      # build PEM once if needed
+      if [ ! -s "$TLS_DIR/pgbouncer.pem" ] && [ -s "$TLS_DIR/pgbouncer.crt" ] && [ -s "$TLS_DIR/pgbouncer.key" ]; then
+        cat "$TLS_DIR/pgbouncer.crt" "$TLS_DIR/pgbouncer.key" > "$TLS_DIR/pgbouncer.pem"
+      fi
+
+      HAVE_SERVER=$([ -s "$TLS_DIR/pgbouncer.pem" ] && echo 1 || echo 0)
+      HAVE_CA_CRT=$([ -s "$TLS_DIR/ca.crt" ] && echo 1 || echo 0)
+      HAVE_CA_KEY=$([ -s "$TLS_DIR/ca.key" ] && echo 1 || echo 0)
+
+      echo "[pgbouncer-provision] have pgbouncer.pem=$HAVE_SERVER ca.crt=$HAVE_CA_CRT ca.key=$HAVE_CA_KEY"
+
+      if [ "$HAVE_SERVER" = 1 ]; then
+        echo "[pgbouncer-provision] Using provided pgbouncer certificate."
+      elif [ "$HAVE_CA_CRT" = 1 ] && [ "$HAVE_CA_KEY" = 1 ]; then
+        echo "[pgbouncer-provision] Signing pgbouncer cert with provided CA."
+        openssl genrsa -out "$TLS_DIR/pgbouncer.key" 4096
+        openssl req -new -key "$TLS_DIR/pgbouncer.key" -subj "/CN=$HOST" \
+          -addext "subjectAltName=DNS:$HOST,DNS:localhost,IP:127.0.0.1,IP:$IP" \
+          -out "$TLS_DIR/pgbouncer.csr"
+        openssl x509 -req -in "$TLS_DIR/pgbouncer.csr" -CA "$TLS_DIR/ca.crt" -CAkey "$TLS_DIR/ca.key" -CAcreateserial \
+          -out "$TLS_DIR/pgbouncer.crt" -sha256 -days 825 \
+          -extfile <(printf "keyUsage=digitalSignature,keyEncipherment\nextendedKeyUsage=serverAuth\nsubjectAltName=DNS:%s,DNS:localhost,IP:127.0.0.1,IP:%s\n" "$HOST" "$IP")
+        cat "$TLS_DIR/pgbouncer.crt" "$TLS_DIR/pgbouncer.key" > "$TLS_DIR/pgbouncer.pem"
+      elif [ "$HAVE_CA_CRT" = 1 ] && [ "$HAVE_CA_KEY" = 0 ]; then
+        echo "[pgbouncer-provision] ERROR: ca.crt present but ca.key missing and no pgbouncer cert provided. Aborting to avoid replacing your CA." >&2
+        exit 20
+      else
+        echo "[pgbouncer-provision] No inputs; generating local CA + pgbouncer cert."
+        openssl genrsa -out "$TLS_DIR/ca.key" 4096
+        openssl req -x509 -new -nodes -key "$TLS_DIR/ca.key" -sha256 -days 3650 -out "$TLS_DIR/ca.crt" -subj "/CN=PgBouncer CA"
+        openssl genrsa -out "$TLS_DIR/pgbouncer.key" 4096
+        openssl req -new -key "$TLS_DIR/pgbouncer.key" -subj "/CN=$HOST" \
+          -addext "subjectAltName=DNS:$HOST,DNS:localhost,IP:127.0.0.1,IP:$IP" \
+          -out "$TLS_DIR/pgbouncer.csr"
+        openssl x509 -req -in "$TLS_DIR/pgbouncer.csr" -CA "$TLS_DIR/ca.crt" -CAkey "$TLS_DIR/ca.key" -CAcreateserial \
+          -out "$TLS_DIR/pgbouncer.crt" -sha256 -days 825 \
+          -extfile <(printf "keyUsage=digitalSignature,keyEncipherment\nextendedKeyUsage=serverAuth\nsubjectAltName=DNS:%s,DNS:localhost,IP:127.0.0.1,IP:%s\n" "$HOST" "$IP")
+        cat "$TLS_DIR/pgbouncer.crt" "$TLS_DIR/pgbouncer.key" > "$TLS_DIR/pgbouncer.pem"
+      fi
+
+      chmod 600 "$TLS_DIR/pgbouncer.key" "$TLS_DIR/pgbouncer.pem" 2>/dev/null || true
+      chmod 600 "$TLS_DIR/ca.key" 2>/dev/null || true
+      chmod 644 "$TLS_DIR/pgbouncer.crt" "$TLS_DIR/ca.crt"
+    '
+  
+  ## the following will update pgbouncer to version 1.17
+  - sudo apt-get update
+  - sudo apt-get install -y libevent-dev
+  - sudo apt-get install -y pkg-config
+  - sudo apt-get install -y libssl-dev
+  - wget https://www.pgbouncer.org/downloads/files/1.17.0/pgbouncer-1.17.0.tar.gz
+  - tar -xvf pgbouncer-1.17.0.tar.gz
+  - rm pgbouncer-1.17.0.tar.gz
+  - cd pgbouncer-1.17.0/
+  - ./configure --prefix=/usr/local
+  - sudo make
+  - sudo make install
+  
+  ## generate the configuration files for postgres and start pgbouncer
+  - [ bash, -lc, '[ -s "/opt/provision/certs/${vm_name}/root.crt.b64" ] && mkdir -p /var/lib/postgresql/certs && cp -f "/opt/provision/certs/${vm_name}/root.crt.b64" "/var/lib/postgresql/certs/root.crt" || true;' ]
+  - [ bash, -lc, 'python3 -m venv /opt/pgbouncer/.venv' ]
+  - [ bash, -lc, '/opt/pgbouncer/.venv/bin/pip install --upgrade pip' ]
+  - [ bash, -lc, '/opt/pgbouncer/.venv/bin/pip install --no-cache-dir psycopg2-binary' ]
+  - sudo /opt/pgbouncer/.venv/bin/python3 /var/lib/postgresql/userlist.py --username "${admin_user}" --password "${admin_pass}" --hostname "${crdb_host}" --port "${crdb_port}" --database "${crdb_db}" --root_crt "/var/lib/postgresql/certs/root.crt"
+  - sudo chown -R postgres:postgres /var/lib/postgresql
+  - sudo systemctl daemon-reload
+  - sudo systemctl enable pgbouncer_runner
+  - sudo systemctl start pgbouncer_runner
+
+  # - sudo apt-get update
+  # - sudo apt-get install -y libpq-dev python-dev-is-python3
+  # - sudo apt-get install -y python3-avro
+  # - sudo apt-get install -y python3-psycopg2
+
+  # Optional firewall
+  - |
+    bash -lc '
+      if command -v ufw >/dev/null 2>&1; then
+        ufw allow ${crdb_port} || true
+      fi
+    '

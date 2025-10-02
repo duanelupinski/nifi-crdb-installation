@@ -4,17 +4,18 @@ set -euo pipefail
 ############################################
 # Defaults (CLI can override)
 ############################################
-MONGO_INSTANCE_NAME="mongo-dev"         # Multipass VM name
-MONGO_TLS_DIR="/etc/ssl/mongo"          # where certs go inside the VM
+INSTANCE_NAME="mongo-dev"         # Multipass VM name
+TLS_DIR="/etc/ssl/mongo"          # where certs go inside the VM
+CLIENT="mongo"                    # name of client certificates
 
-SSH_USER="ubuntu"                       # remote user for NiFi nodes
-SSH_KEY="${HOME}/.ssh/id_rsa"           # path to SSH key (or rely on ssh-agent)
+SSH_USER="ubuntu"                 # remote user for NiFi nodes
+SSH_KEY="${HOME}/.ssh/id_rsa"     # path to SSH key (or rely on ssh-agent)
 
 # If your NiFi nodes use a non-default JVM, set the exact cacerts path here:
 # JAVA_CACERTS_PATH="/usr/lib/jvm/java-17-openjdk-amd64/lib/security/cacerts"
 JAVA_CACERTS_PATH=""
 
-# Mongo CA identity (separate from any NiFi CA)
+# CA identity (separate from any NiFi CA)
 NIFI_CA_ALIAS="mongo_server_ca"
 DEST_DIR="$(pwd)/.private/mongo-certs"
 
@@ -26,13 +27,14 @@ you'll also need to provide the password for the trust store
   $ export TRUSTSTORE_PASSWD='******'
 
 Options:
-  --mongo-name    Multipass VM name, defaults to $MONGO_INSTANCE_NAME
-  --mongo-tls     where certs go inside the VM, defaults to $MONGO_TLS_DIR
+  --vm-name       Multipass VM name, defaults to $INSTANCE_NAME
+  --tls-dir       where certs go inside the VM, defaults to $TLS_DIR
+  --client        name of client certs on the VM, defaults to $CLIENT
   --ssh-user      remote user for NiFi nodes, defaults to $SSH_USER
   --ssh-key       path to SSH key (or rely on ssh-agent), defaults to $SSH_KEY
   --java-ca-path  path where cacerts live on host, defaults to $JAVA_CACERTS_PATH
   --ca-alias      defaults to $NIFI_CA_ALIAS
-  --dest-dir      local destination folder for mongo certs, defaults to $DEST_DIR
+  --dest-dir      local destination folder for the certs, defaults to $DEST_DIR
   -h, --help
 EOF
 }
@@ -41,8 +43,9 @@ EOF
 while (( "$#" )); do
   case "$1" in
     -h|--help) usage; exit 0 ;;
-    --mongo-name)    MONGO_INSTANCE_NAME="$2"; shift 2 ;;
-    --mongo-tls)     MONGO_TLS_DIR="$2"; shift 2 ;;
+    --vm-name)       INSTANCE_NAME="$2"; shift 2 ;;
+    --tls-dir)       TLS_DIR="$2"; shift 2 ;;
+    --client)        CLIENT="$2"; shift 2 ;;
     --ssh-user)      SSH_USER="$2"; shift 2 ;;
     --ssh-key)       SSH_KEY="$2"; shift 2 ;;
     --java-ca-path)  JAVA_CACERTS_PATH="$2"; shift 2 ;;
@@ -100,42 +103,42 @@ detect_remote_cacerts() {
 }
 
 ############################################
-# Ensure multipass present and get Mongo VM IP
+# Ensure multipass present and get VM IP
 ############################################
 need() { command -v "$1" >/dev/null || { err "missing: $1"; exit 1; }; }
 need multipass; need ssh; need scp; need keytool || true
 
 [[ -n "${TRUSTSTORE_PASSWD:-}" ]] || { err "TRUSTSTORE_PASSWD not set"; exit 1; }
 
-mkdir -p "$DEST_DIR/_ca" "$DEST_DIR/${MONGO_INSTANCE_NAME}"
+mkdir -p "$DEST_DIR/_ca" "$DEST_DIR/${INSTANCE_NAME}"
 
-log "Fetching IP for '${MONGO_INSTANCE_NAME}'..."
+log "Fetching IP for '${INSTANCE_NAME}'..."
 if command -v jq >/dev/null 2>&1; then
-  MONGO_IP="$(multipass info "$MONGO_INSTANCE_NAME" --format json | jq -r '.info["'"$MONGO_INSTANCE_NAME"'"].ipv4[0]')"
+  IP="$(multipass info "$INSTANCE_NAME" --format json | jq -r '.info["'"$INSTANCE_NAME"'"].ipv4[0]')"
 else
-  MONGO_IP="$(multipass info "$MONGO_INSTANCE_NAME" | awk '/IPv4/ {print $2; exit}')"
-  [[ -n "${MONGO_IP:-}" ]] || MONGO_IP="$(multipass info "$MONGO_INSTANCE_NAME" --format json | tr -d '\n' | sed -nE 's/.*"ipv4"[[:space:]]*:[[:space:]]*\[[[:space:]]*"([^"]+)".*/\1/p')"
+  IP="$(multipass info "$INSTANCE_NAME" | awk '/IPv4/ {print $2; exit}')"
+  [[ -n "${IP:-}" ]] || IP="$(multipass info "$INSTANCE_NAME" --format json | tr -d '\n' | sed -nE 's/.*"ipv4"[[:space:]]*:[[:space:]]*\[[[:space:]]*"([^"]+)".*/\1/p')"
 fi
-[[ -n "${MONGO_IP:-}" ]] || { err "Could not determine VM IP. Is the instance running?"; exit 1; }
-log "Mongo VM IP: ${MONGO_IP}"
+[[ -n "${IP:-}" ]] || { err "Could not determine VM IP. Is the instance running?"; exit 1; }
+log "VM IP: ${IP}"
 
 ############################################
-# Copy certs from Mongo VM to local destination folder
+# Copy certs from the VM to local destination folder
 ############################################
 CA_KEY="${DEST_DIR}/_ca/ca.key"
 CA_CRT="${DEST_DIR}/_ca/ca.crt"
-SRV_KEY="${DEST_DIR}/${MONGO_INSTANCE_NAME}/mongo.key"
-SRV_CRT="${DEST_DIR}/${MONGO_INSTANCE_NAME}/mongo.crt"
-SRV_PEM="${DEST_DIR}/${MONGO_INSTANCE_NAME}/mongo.pem"
+SRV_KEY="${DEST_DIR}/${INSTANCE_NAME}/${CLIENT}.key"
+SRV_CRT="${DEST_DIR}/${INSTANCE_NAME}/${CLIENT}.crt"
+SRV_PEM="${DEST_DIR}/${INSTANCE_NAME}/${CLIENT}.pem"
 
 log "Pulling certs from VM..."
 PUBKEY="$(cat ${SSH_KEY}.pub)"
-multipass exec $MONGO_INSTANCE_NAME -- bash -lc "mkdir -p ~/.ssh && chmod 700 ~/.ssh && echo '$PUBKEY' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
-ssh_cmd "$MONGO_IP" "sudo cat ${MONGO_TLS_DIR}/ca.key" > "$CA_KEY"
-ssh_cmd "$MONGO_IP" "sudo cat ${MONGO_TLS_DIR}/ca.crt" > "$CA_CRT"
-ssh_cmd "$MONGO_IP" "sudo cat ${MONGO_TLS_DIR}/server.key" > "$SRV_KEY" || true
-ssh_cmd "$MONGO_IP" "sudo cat ${MONGO_TLS_DIR}/server.crt" > "$SRV_CRT" || true
-ssh_cmd "$MONGO_IP" "sudo cat ${MONGO_TLS_DIR}/server.pem" > "$SRV_PEM" || true
+multipass exec $INSTANCE_NAME -- bash -lc "mkdir -p ~/.ssh && chmod 700 ~/.ssh && echo '$PUBKEY' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+ssh_cmd "$IP" "sudo cat ${TLS_DIR}/ca.key" > "$CA_KEY"
+ssh_cmd "$IP" "sudo cat ${TLS_DIR}/ca.crt" > "$CA_CRT"
+ssh_cmd "$IP" "sudo cat ${TLS_DIR}/server.key" > "$SRV_KEY" || true
+ssh_cmd "$IP" "sudo cat ${TLS_DIR}/server.crt" > "$SRV_CRT" || true
+ssh_cmd "$IP" "sudo cat ${TLS_DIR}/server.pem" > "$SRV_PEM" || true
 
 ############################################
 # Import CA into NiFi JVM truststores
