@@ -29,7 +29,6 @@ locals {
     admin_pass  = var.admin_pass
     crdb_host   = var.crdb_hostname
     crdb_port   = var.crdb_port
-    crdb_db     = var.crdb_database
     cr_crt_b64  = base64encode(local.root_crt)
 
     ca_crt_b64  = base64encode(local.ca_crt)

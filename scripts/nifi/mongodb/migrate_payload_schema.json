@@ -29,6 +29,29 @@
       ],
       "default": "normal"
     },
+    "nifi": {
+      "type": "object",
+      "description": "Information about he running NiFi cluster.",
+      "properties": {
+        "apiUrl": {
+          "type": "string",
+          "description": "Endpoint URL for NiFi host that can server API requests for this cluster.",
+          "format": "uri",
+          "default": "https://nifi-node-01:9443/nifi-api"
+        },
+        "processGroupName": {
+          "type": "string",
+          "description": "name of the main process group used to orchestrate the migration pipeline",
+          "default": "MongoDB to CRDB"
+        },
+        "dbcpLookupName": {
+          "type": "string",
+          "description": "name of the DBCP lookup controller service that stores database connection details for a migration",
+          "default": "DBCPConnectionPoolLookup"
+        }
+      },
+      "additionalProperties": false
+    },
     "orchestrator": {
       "type": "object",
       "description": "Metadata used by the controller/runner layer (not business logic).",
@@ -92,32 +115,32 @@
           "properties": {
             "verifyPeer": {
               "type": "boolean",
-              "description": "Whether to verify server certs. Should be true in prod.",
+              "description": "TBI: Whether to verify server certs. Should be true in prod.",
               "default": true
             },
             "caCertSecretRef": {
               "type": "string",
-              "description": "Secret ref for custom CA bundle if using private PKI."
+              "description": "TBI: Secret ref for custom CA bundle if using private PKI."
             }
           },
           "additionalProperties": false
         },
         "readConcern": {
           "type": "string",
-          "description": "Controls consistency level of reads (local, majority, linearizable, available, snapshot)."
+          "description": "TBI: Controls consistency level of reads (local, majority, linearizable, available, snapshot)."
         },
         "writeConcern": {
           "type": "string",
-          "description": "Acks for writes (majority, w:1, w:0, w:N, often with j/wtimeout in URI)."
+          "description": "TBI: Acks for writes (majority, w:1, w:0, w:N, often with j/wtimeout in URI)."
         },
         "maxDocsPerBatch": {
           "type": "integer",
-          "description": "Application-level chunk size for processing/commit cycles (e.g., read → transform → stage → commit), primary backpressure & memory control for the pipeline.",
+          "description": "TBI: Application-level chunk size for processing/commit cycles (e.g., read → transform → stage → commit), primary backpressure & memory control for the pipeline.",
           "minimum": 1
         },
         "cursorBatchSize": {
           "type": "integer",
-          "description": "Hints Mongo how many docs to return per getMore. Smaller = more round trips; larger = fewer calls but bigger bursts.",
+          "description": "TBI: Hints Mongo how many docs to return per getMore. Smaller = more round trips; larger = fewer calls but bigger bursts.",
           "minimum": 1
         }
       },
@@ -127,13 +150,18 @@
       "type": "object",
       "title": "Target CockroachDB Configuration (v1)",
       "required": [
-        "sqlEndpoint"
+        "hostname"
       ],
       "properties": {
-        "sqlEndpoint": {
+        "hostname": {
           "type": "string",
-          "description": "Postgres-compatible connection string or components routed through PgBouncer (e.g., postgres://user@pgbouncer-host:6432/dbname or host:port + db in query).",
+          "description": "Name of the host used to access your CockroachDB cluster.",
           "minLength": 1
+        },
+        "port": {
+          "type": "string",
+          "description": "Name of the host used to access your CockroachDB cluster.",
+          "default": "26257"
         },
         "auth": {
           "type": "object",
@@ -141,7 +169,7 @@
           "properties": {
             "username": {
               "type": "string",
-              "description": "Database role to connect as. Required if not provided in sqlEndpoint."
+              "description": "Database role to connect as. Required if not using client certs."
             },
             "passwordSecretRef": {
               "type": "string",
@@ -154,30 +182,30 @@
           "type": "object",
           "description": "TLS options. Enable server verification and (optionally) client cert auth.",
           "properties": {
-            "verifyPeer": {
-              "type": "boolean",
-              "default": true,
-              "description": "Verify server certificate. Should be true in production."
-            },
-            "caCertSecretRef": {
+            "sslmode": {
               "type": "string",
-              "description": "Secret reference containing the CA bundle for server verification."
+              "description": "Controls the level of server certificate verification for connections.",
+              "default": "disable"
             },
-            "clientCertSecretRef": {
+            "caCertLocation": {
               "type": "string",
-              "description": "Secret reference to a PEM-encoded client certificate for mTLS (if used)."
+              "description": "Location of the CA bundle for server verification."
             },
-            "clientKeySecretRef": {
+            "clientCertLocation": {
               "type": "string",
-              "description": "Secret reference to the PEM-encoded private key for the client certificate (if used)."
+              "description": "Location of a PEM-encoded client certificate for mTLS (if used)."
+            },
+            "clientKeyLocation": {
+              "type": "string",
+              "description": "Location of the PEM-encoded private key for the client certificate (if used)."
             }
           },
           "additionalProperties": false
         },
         "database": {
           "type": "string",
-          "description": "Target database name in CockroachDB. Required if not embedded in sqlEndpoint.",
-          "minLength": 1
+          "description": "Target database name in CockroachDB.",
+          "default": "defaultdb"
         },
         "defaultSchema": {
           "type": "string",
@@ -187,6 +215,10 @@
         "stagingSchema": {
           "type": "string",
           "description": "Durable scratch schema for bulk loads/merges. Preferred over session temp tables when using PgBouncer transaction pooling."
+        },
+        "maxConnections": {
+          "type": "number",
+          "description": "The maximum total number of connections that will be available for the migration."
         }
       },
       "additionalProperties": false
@@ -203,7 +235,7 @@
             "apply_new_only",
             "apply_and_update_existing"
           ],
-          "default": "apply_new_only"
+          "default": "generate_only"
         }
       },
       "additionalProperties": false
@@ -213,10 +245,12 @@
       "properties": {
         "enabled": {
           "type": "boolean",
-          "default": true
+          "description": "Controls whether the snapshot migration is run.",
+          "default": false
         },
         "parallelCollections": {
           "type": "integer",
+          "description": "TBI: ",
           "minimum": 1,
           "default": 3
         },
@@ -225,6 +259,7 @@
             "integer",
             "null"
           ],
+          "description": "TBI: ",
           "minimum": 1
         },
         "avro": {
@@ -246,6 +281,7 @@
                 },
                 "compression": {
                   "type": "string",
+                  "description": "TBI: ",
                   "enum": [
                     "none",
                     "deflate",
@@ -263,6 +299,7 @@
             },
             "recordNaming": {
               "type": "string",
+              "description": "TBI: ",
               "enum": [
                 "table_per_record",
                 "single_union"
@@ -271,13 +308,15 @@
             },
             "logicalTypeHints": {
               "type": "boolean",
+              "description": "TBI: ",
               "default": true
             },
             "schemaRegistry": {
               "type": [
                 "string",
                 "null"
-              ]
+              ],
+              "description": "TBI: "
             }
           },
           "additionalProperties": false
@@ -296,11 +335,13 @@
             },
             "batchRows": {
               "type": "integer",
+              "description": "TBI: ",
               "minimum": 1,
               "default": 5000
             },
             "maxInFlightBatches": {
               "type": "integer",
+              "description": "TBI: ",
               "minimum": 1,
               "default": 8
             },
@@ -309,10 +350,12 @@
               "properties": {
                 "useTempTables": {
                   "type": "boolean",
+                  "description": "TBI: ",
                   "default": true
                 },
                 "swapAtomic": {
                   "type": "boolean",
+                  "description": "TBI: ",
                   "default": true
                 }
               },
@@ -329,13 +372,15 @@
       "properties": {
         "enabled": {
           "type": "boolean",
-          "default": true
+          "description": "Controls whether continuous migration is run.",
+          "default": false
         },
         "startPoint": {
           "type": "object",
           "properties": {
             "strategy": {
               "type": "string",
+              "description": "TBI: ",
               "enum": [
                 "now",
                 "clusterTime",
@@ -348,13 +393,15 @@
                 "string",
                 "null"
               ],
+              "description": "TBI: ",
               "format": "date-time"
             },
             "resumeToken": {
               "type": [
                 "string",
                 "null"
-              ]
+              ],
+              "description": "TBI: "
             }
           },
           "additionalProperties": false
@@ -364,6 +411,7 @@
           "properties": {
             "mode": {
               "type": "string",
+              "description": "TBI: ",
               "enum": [
                 "direct",
                 "kafka"
@@ -374,16 +422,19 @@
               "type": "object",
               "properties": {
                 "bootstrapServers": {
-                  "type": "string"
+                  "type": "string",
+                  "description": "TBI: "
                 },
                 "sasl": {
                   "type": [
                     "object",
                     "null"
-                  ]
+                  ],
+                  "description": "TBI: "
                 },
                 "topicPrefix": {
-                  "type": "string"
+                  "type": "string",
+                  "description": "TBI: "
                 }
               },
               "additionalProperties": false
@@ -396,11 +447,13 @@
           "properties": {
             "maxAttempts": {
               "type": "integer",
+              "description": "TBI: ",
               "minimum": 0,
               "default": 100
             },
             "backoffMs": {
               "type": "integer",
+              "description": "TBI: ",
               "minimum": 0,
               "default": 500
             }
@@ -876,22 +929,26 @@
       "properties": {
         "prechecks": {
           "type": "array",
+          "description": "TBI: ",
           "items": {
             "type": "string"
           }
         },
         "stopIfRowCountMismatchPct": {
           "type": "number",
+          "description": "TBI: ",
           "minimum": 0,
           "maximum": 100,
           "default": 5.0
         },
         "stopOnDdlError": {
           "type": "boolean",
+          "description": "TBI: ",
           "default": true
         },
         "allowDropOnRegenerate": {
           "type": "boolean",
+          "description": "TBI: ",
           "default": false
         }
       },

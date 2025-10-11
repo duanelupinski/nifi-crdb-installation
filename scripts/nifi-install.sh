@@ -292,7 +292,12 @@ BASH
 # --- Operation: new-cluster ------------------------------------------------
 ni::op::new_cluster(){
   # Build inventory once
-  ni::inventory_from_args "${registry_host}" "$@"
+  if [ -n "${registry_host}" ]; then
+    ni::inventory_from_args --registry "${registry_host}" "$@"
+  else
+    ni::inventory_from_args --no-registry "$@"
+  fi
+
   # Inspect parsed lists
   if [ "$TRACE" = true ]; then
     local _nodes _nifi _zk _hosts

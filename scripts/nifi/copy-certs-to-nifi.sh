@@ -163,6 +163,10 @@ for host in "${NIFI_NODES[@]}"; do
     sudo keytool -importcert -alias ${NIFI_CA_ALIAS} -file /tmp/ca.crt -keystore '${CACERTS_PATH}' -storepass '${TRUSTSTORE_PASSWD}' -noprompt
     sudo systemctl restart nifi || true
     sleep 1; sudo systemctl is-active nifi || true
+    sudo mkdir -p ${TLS_DIR}
+    sudo mv /tmp/ca.crt ${TLS_DIR}/ca.crt
+    sudo chown -R nifi:nifi ${TLS_DIR}
+    sudo chmod 644 ${TLS_DIR}/ca.crt
   "
 done
 

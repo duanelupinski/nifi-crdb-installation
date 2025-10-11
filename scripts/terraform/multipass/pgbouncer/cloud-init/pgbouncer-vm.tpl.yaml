@@ -156,11 +156,10 @@ write_files:
           ap.add_argument("--password", required=True, help="CockroachDB credentials for user")
           ap.add_argument("--hostname", required=True, help="CockroachDB proxy host for connections")
           ap.add_argument("--port", required=True, help="CockroachDB port for connections")
-          ap.add_argument("--database", required=True, help="CockroachDB database for connections")
           ap.add_argument("--root_crt", required=True, help="CockroachDB root cert used for connections")
           args = ap.parse_args()
 
-          url = f"postgresql://{args.username}:{args.password}@{args.hostname}:{args.port}/{args.database}?sslmode=verify-full&sslrootcert={args.root_crt}"
+          url = f"postgresql://{args.username}:{args.password}@{args.hostname}:{args.port}/?sslmode=verify-full&sslrootcert={args.root_crt}"
           scram = fetch_scram_secret(url, args.username)
           userlist = "/var/lib/postgresql/userlist.txt"
           update_userlist(userlist, args.username, scram)
@@ -173,7 +172,7 @@ write_files:
     permissions: '0644'
     content: |
       [databases]
-      * = host=${crdb_host} port=${crdb_port} dbname=${crdb_db}
+      * = host=${crdb_host} port=${crdb_port}
       
       [pgbouncer]
       listen_port = ${crdb_port}
@@ -425,7 +424,7 @@ runcmd:
   - [ bash, -lc, 'python3 -m venv /opt/pgbouncer/.venv' ]
   - [ bash, -lc, '/opt/pgbouncer/.venv/bin/pip install --upgrade pip' ]
   - [ bash, -lc, '/opt/pgbouncer/.venv/bin/pip install --no-cache-dir psycopg2-binary' ]
-  - sudo /opt/pgbouncer/.venv/bin/python3 /var/lib/postgresql/userlist.py --username "${admin_user}" --password "${admin_pass}" --hostname "${crdb_host}" --port "${crdb_port}" --database "${crdb_db}" --root_crt "/var/lib/postgresql/certs/root.crt"
+  - sudo /opt/pgbouncer/.venv/bin/python3 /var/lib/postgresql/userlist.py --username "${admin_user}" --password "${admin_pass}" --hostname "${crdb_host}" --port "${crdb_port}" --root_crt "/var/lib/postgresql/certs/root.crt"
   - sudo chown -R postgres:postgres /var/lib/postgresql
   - sudo systemctl daemon-reload
   - sudo systemctl enable pgbouncer_runner

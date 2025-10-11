@@ -57,12 +57,6 @@ variable "crdb_port" {
   default     = 26257
 }
 
-variable "crdb_database" {
-  description = "The database used to connect to cockroachdb"
-  type        = string
-  default     = "defaultdb"
-}
-
 variable "crdb_root_cert" {
   description = "Absolute path to the root certificate for your cockroach cluster"
   type        = string
