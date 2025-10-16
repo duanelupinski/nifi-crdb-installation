@@ -20,9 +20,9 @@ ni::tunnel::port_listening() {
 }
 
 # Start a background SSH tunnel if not already active.
-# Usage: ni::tunnel::ensure <ssh_user> <admin_host> [registry_host]
-# - Binds local 9443->admin_host:9443
-# - Binds local 19443->registry_host:19443 (if provided)
+# Usage: ni::tunnel::ensure <ssh_user> <admin_host> <admin_port> [registry_host] [registry_port]
+# - Binds local <admin_port> -> admin_host:<admin_port>
+# - Binds local <registry_port> -> registry_host:<registry_port> (if provided)
 # Uses ControlMaster so multiple forwards share one connection.
 ni::tunnel::ensure() {
   local ssh_user="$1"; local admin_host="$2"; local local_admin="$3";
@@ -95,7 +95,7 @@ OSA
 }
 
 # Ensure aliases exist on the 127.0.0.1 line in /etc/hosts (idempotent).
-# Usage: ni::tunnel::ensure_local_aliases nifi-node-01 nifi-registry
+# Usage: ni::tunnel::ensure_local_aliases nifi-node-01 nifi-node-02 nifi-registry ...
 ni::tunnel::ensure_local_aliases() {
   local aliases=("$@")
   [ "${#aliases[@]}" -gt 0 ] || { ni::tunnel::warn "No aliases supplied to ni::tunnel::ensure_local_aliases"; return 0; }
@@ -168,15 +168,20 @@ ni::tunnel::ensure_local_aliases() {
 }
 
 # Call this right after starting cluster services and before authorizing nodes.
+# Usage: ni::tunnel::prepare_local_access <secure> <ssh_user> [registry_host]
 ni::tunnel::prepare_local_access() {
   local secure="${1:-false}"
   local ssh_user="${2:-ubuntu}"
-  local admin_host="${3:-nifi-node-01}"
-  local registry_host="${4:-}"   # optional
+  local registry_host="${3:-}"   # optional
+  if [ "${#NIFI_NODES[@]}" -eq 0 ]; then
+    ni::tunnel::err "NIFI_NODES is empty; cannot infer admin and node aliases."
+    return 1
+  fi
+  local admin_host="${NIFI_NODES[0]}"
 
-  nifi_scheme="http"
-  nifi_port="8080"
-  reg_port="18080"
+  local nifi_scheme="http"
+  local nifi_port="8080"
+  local reg_port="18080"
   if [ "${secure}" = true ]; then
     nifi_scheme="https"
     nifi_port="9443"
@@ -188,9 +193,15 @@ ni::tunnel::prepare_local_access() {
     ni::tunnel::log "Admin UI not reachable directly; creating SSH tunnel via ${admin_host}."
     NIFI_OPEN_TERMINAL=1 ni::tunnel::ensure "$ssh_user" "$admin_host" "$nifi_port" "$registry_host" "$reg_port" || return 1
 
-    # 2) Ensure /etc/hosts has aliases pointing to localhost
+    # Ensure /etc/hosts has ALL aliases pointing to localhost:
+    # - admin host
+    # - registry host (if any)
+    # - any remaining cluster nodes (passed as extra args)
     local aliases=("$admin_host")
     [ -n "$registry_host" ] && aliases+=("$registry_host")
+    if [ "${#NIFI_NODES[@]}" -gt 1 ]; then
+      aliases+=("${NIFI_NODES[@]:1}")
+    fi
     ni::tunnel::ensure_local_aliases "${aliases[@]}"
   else
     ni::tunnel::log "Admin UI reachable directly at ${nifi_scheme}://${admin_host}:${nifi_port} — tunnel not required."

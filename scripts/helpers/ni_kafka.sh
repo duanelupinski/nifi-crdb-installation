@@ -85,7 +85,7 @@ Type=simple
 User=kafka
 Group=kafka
 WorkingDirectory=/opt/kafka
-Environment=KAFKA_HEAP_OPTS=-Xms1g -Xmx1g
+Environment="KAFKA_HEAP_OPTS=-Xms1g -Xmx1g"
 # Verify the script exists & is executable before start
 ExecStartPre=/usr/bin/test -x /opt/kafka/bin/kafka-server-start.sh
 # Use env to select bash explicitly

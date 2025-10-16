@@ -628,11 +628,11 @@ ni::op::new_cluster(){
     ni::registry::enable_start "${remote}"
   fi
 
-  ni::tunnel::prepare_local_access "${secure}" "${installer}" "${NIFI_NODES[0]}" "${registry_host}"
+  export NIFI_USER=${NIFI_USER}
+  export NIFI_NODES=${NIFI_NODES}
+  ni::tunnel::prepare_local_access "${secure}" "${installer}" "${registry_host}"
 
   if [ "${secure}" = true ]; then
-    export NIFI_USER=${NIFI_USER}
-    export NIFI_NODES=${NIFI_NODES}
     if ni::nifi::wait_nifi_cluster_ready; then
       echo "NiFi cluster healthy. Proceeding with auth/policy setup…"
       ni::auth::grant_nodes
@@ -643,8 +643,6 @@ ni::op::new_cluster(){
   fi
 
   if [ -n "${registry_host}" ]; then
-    export NIFI_USER=${NIFI_USER}
-    export NIFI_NODES=${NIFI_NODES}
     export REGISTRY_HOST=${registry_host}
     ni::nifi::ensure_registry_client
     remote="${installer}@$(ni::resolve_host "${registry_host}")"
