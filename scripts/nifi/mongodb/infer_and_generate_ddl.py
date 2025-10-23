@@ -29,6 +29,8 @@ _ISO_DT_RE = re.compile(
     r"(?:Z|[+-]\d{2}:\d{2}|[+-]\d{4})?)?$"    # Z or ±HH:MM or none
 )
 
+
+_HEX24_RE = re.compile(r"^[0-9a-fA-F]{24}$")  # Mongo ObjectId textual form
 def looks_like_iso_datetime(s: str) -> bool:
     if not isinstance(s, str) or len(s) < 10 or len(s) > 35:
         return False
@@ -69,7 +71,6 @@ def merge_types(types):
     if "bool" in tset and len(tset) == 1:
         return "bool"
     return "string"
-
 def walk_types(doc, prefix="", out=None):
     if out is None: out = defaultdict(set)
     if isinstance(doc, dict):
@@ -78,6 +79,15 @@ def walk_types(doc, prefix="", out=None):
             if v is None:
                 out[path].add("null")
             elif isinstance(v, dict):
+                # { "$oid": "671f..." }  -> objectId
+                if set(v.keys()) == {"$oid"} and isinstance(v["$oid"], str) and _HEX24_RE.match(v["$oid"]):
+                    out[path].add("objectId"); continue
+                # { "$date": ... }       -> date
+                if set(v.keys()) == {"$date"}:
+                    out[path].add("date"); continue
+                # { "$timestamp": {...} } -> treat as int (or keep as "object" if you prefer)
+                if set(v.keys()) == {"$timestamp"}:
+                    out[path].add("int32"); continue
                 out[path].add("object"); walk_types(v, path, out)
             elif isinstance(v, list):
                 out[path].add("array")
@@ -85,6 +95,12 @@ def walk_types(doc, prefix="", out=None):
                     if el is None:
                         out[path+"[]"].add("null")
                     elif isinstance(el, dict):
+                        if set(el.keys()) == {"$oid"} and isinstance(el["$oid"], str) and _HEX24_RE.match(el["$oid"]):
+                            out[path+"[]"].add("objectId"); continue
+                        if set(el.keys()) == {"$date"}:
+                            out[path+"[]"].add("date"); continue
+                        if set(el.keys()) == {"$timestamp"}:
+                            out[path+"[]"].add("int32"); continue
                         out[path+"[]"].add("object"); walk_types(el, path+"[]", out)
                     elif isinstance(el, list):
                         out[path+"[]"].add("array")
@@ -95,7 +111,10 @@ def walk_types(doc, prefix="", out=None):
                     elif isinstance(el, float):
                         out[path+"[]"].add("double")
                     else:
-                        if isinstance(el, str) and looks_like_iso_datetime(el):
+                        # NOTE: check OID before date
+                        if isinstance(el, str) and _HEX24_RE.match(el):
+                            out[path+"[]"].add("objectId")
+                        elif isinstance(el, str) and looks_like_iso_datetime(el):
                             out[path+"[]"].add("date")
                         else:
                             out[path+"[]"].add("string")
@@ -106,7 +125,10 @@ def walk_types(doc, prefix="", out=None):
             elif isinstance(v, float):
                 out[path].add("double")
             else:
-                if looks_like_iso_datetime(v):
+                # NOTE: check OID before date
+                if isinstance(v, str) and _HEX24_RE.match(v):
+                    out[path].add("objectId")
+                elif looks_like_iso_datetime(v):
                     out[path].add("date")
                 else:
                     out[path].add("string")
@@ -242,8 +264,23 @@ def build_mapping(bundle):
     # --- Base table naming (allow tableOverride on collection path) ---
     base_path = bundle["meta"]["collection"]
     base_override = get_table_override(sc, base_path) or {}
+    # External FK specs on base table (optional): can be a dict or list of dicts
+    base_fk_specs = base_override.get("fk")
+    if base_fk_specs and isinstance(base_fk_specs, dict):
+        base_fk_specs = [base_fk_specs]
+    elif not base_fk_specs:
+        base_fk_specs = []
+    external_fk_by_child = {}
+    for _spec in base_fk_specs:
+        child_cols = _spec.get("childColumns")
+        if isinstance(child_cols, str):
+            external_fk_by_child[child_cols] = _spec
+        elif isinstance(child_cols, list):
+            for _c in child_cols:
+                if isinstance(_c, str):
+                    external_fk_by_child[_c] = _spec
     base_table_name = base_override.get("targetTable") or styled_name(base_path, name_style, ident_max)
-    mapping = {"baseTable": base_table_name, "columns": [], "childTables": []}
+    mapping = {"baseTable": base_table_name, "columns": [], "childTables": [], "baseForeignKeys": [], "externalForeignKeys": []}
 
     # --- Build base PK column (id) per id_strategy unless explicit_pk overrides it ---
     def id_type_and_default(strategy):
@@ -631,10 +668,49 @@ def build_mapping(bundle):
                             mapping["columns"].append({"name": cname, "path": child_path, "type": ctype})
                             jsonified_objects.add(child_path)
                         else:
-                            raw_t = inferred.get(child_path, "STRING")
-                            ctype = finalize_type(cov.get("crdbType") or raw_t, child_path)
-                            cname = styled_name(cov.get("crdbName") or child_path, name_style, ident_max)
-                            mapping["columns"].append({"name": cname, "path": child_path, "type": ctype})
+                            # External FK on top-level scalar fields (base table)
+                            _top_level = "." not in child_path
+                            _fk_spec = external_fk_by_child.get(child_path) if _top_level else None
+                            if _fk_spec:
+                                # Legacy FK value column (preserve original ObjectId)
+                                _legacy_col = styled_name(f"{child_path}_{preserve_as}", name_style, ident_max)
+                                if not any(c["name"] == _legacy_col for c in mapping["columns"]):
+                                    mapping["columns"].append({"name": _legacy_col, "path": child_path, "type": finalize_type("objectId", child_path)})
+                                # Actual FK column typed per id strategy
+                                _fk_col = styled_name(f"{child_path}_id", name_style, ident_max)
+                                _id_type, _, _ = id_type_and_default(id_strategy)
+                                if not any(c["name"] == _fk_col for c in mapping["columns"]):
+                                    mapping["columns"].append({"name": _fk_col, "path": None, "type": _id_type})
+                                # Base-level FK constraint
+                                _parent_table = _fk_spec.get("parentTable") or styled_name(child_path, name_style, ident_max)
+                                _parent_cols = _fk_spec.get("parentColumns") or ["id"]
+                                _pc = []
+                                for pc in _parent_cols:
+                                    _pc.append(styled_name(("id" if (pc == "_id" and id_strategy != "use_objectid") else pc), name_style, ident_max))
+                                mapping["baseForeignKeys"].append({
+                                    "parentTable": styled_name(_parent_table, name_style, ident_max),
+                                    "parentColumns": _pc,
+                                    "childColumns": [_fk_col],
+                                    "onDelete": _fk_spec.get("onDelete") or fk_on_delete
+                                })
+                                # Migration-time lookup hint (for pipeline)
+                                mapping["externalForeignKeys"].append({
+                                    "childField": styled_name(child_path, name_style, ident_max),
+                                    "legacyColumn": _legacy_col,
+                                    "fkColumn": _fk_col,
+                                    "parentTable": styled_name(_parent_table, name_style, ident_max),
+                                    "parentIdColumn": _pc[0],
+                                    "lookup": {
+                                        "from": _legacy_col,
+                                        "toTable": styled_name(_parent_table, name_style, ident_max),
+                                        "toColumn": styled_name(preserve_as if id_strategy != "use_objectid" else "id", name_style, ident_max)
+                                    }
+                                })
+                            else:
+                                raw_t = inferred.get(child_path, "STRING")
+                                ctype = finalize_type(cov.get("crdbType") or raw_t, child_path)
+                                cname = styled_name(cov.get("crdbName") or child_path, name_style, ident_max)
+                                mapping["columns"].append({"name": cname, "path": child_path, "type": ctype})
                 else:
                     # too deep → JSON
                     cov = get_column_override(sc, p) or {}
@@ -652,6 +728,53 @@ def build_mapping(bundle):
         # scalar field
         cov = get_column_override(sc, p) or {}
         if cov.get("action") == "ignore": continue
+
+        # external FK on top-level scalars (e.g., articles.orderRef)
+        if "." not in p:
+            _fk_spec = external_fk_by_child.get(p)
+            if _fk_spec:
+                _fk_col = styled_name(f"{p}_id", name_style, ident_max)
+                _id_type, _, _ = id_type_and_default(id_strategy)
+
+                # Only create the legacy FK value when NOT using objectId strategy
+                if id_strategy != "use_objectid":
+                    _legacy_col = styled_name(f"{p}_{preserve_as}", name_style, ident_max)
+                    if not any(c["name"] == _legacy_col for c in mapping["columns"]):
+                        mapping["columns"].append({"name": _legacy_col, "path": p, "type": finalize_type("objectId", p)})
+
+                if not any(c["name"] == _fk_col for c in mapping["columns"]):
+                    mapping["columns"].append({"name": _fk_col, "path": None, "type": _id_type})
+                # base-level FK constraint
+                _parent_table = _fk_spec.get("parentTable") or styled_name(p, name_style, ident_max)
+                _parent_cols = _fk_spec.get("parentColumns") or ["id"]
+                _pc = []
+                for pc in _parent_cols:
+                    _pc.append(styled_name(("id" if (pc == "_id" and id_strategy != "use_objectid") else pc), name_style, ident_max))
+
+                mapping["baseForeignKeys"].append({
+                    "parentTable": styled_name(_parent_table, name_style, ident_max),
+                    "parentColumns": _pc,
+                    "childColumns": [_fk_col],
+                    "onDelete": _fk_spec.get("onDelete") or fk_on_delete
+                })
+
+                # Only add migration lookup hint when NOT using objectId strategy
+                if id_strategy != "use_objectid":
+                    mapping["externalForeignKeys"].append({
+                        "childField": styled_name(p, name_style, ident_max),
+                        "legacyColumn": _legacy_col,
+                        "fkColumn": _fk_col,
+                        "parentTable": styled_name(_parent_table, name_style, ident_max),
+                        "parentIdColumn": _pc[0],
+                        "lookup": {
+                            "from": _legacy_col,
+                            "toTable": styled_name(_parent_table, name_style, ident_max),
+                            "toColumn": styled_name(preserve_as, name_style, ident_max)
+                        }
+                    })
+
+                continue
+
         raw_t = inferred.get(p, "STRING")
         ctype = finalize_type(cov.get("crdbType") or raw_t, p)
         cname = styled_name(cov.get("crdbName") or p, name_style, ident_max)

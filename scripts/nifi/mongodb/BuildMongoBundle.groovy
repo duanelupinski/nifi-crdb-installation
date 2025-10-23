@@ -45,6 +45,8 @@ import com.mongodb.client.MongoCollection
 import com.mongodb.client.MongoDatabase
 import com.mongodb.client.model.Sorts
 import org.bson.Document
+import org.bson.json.JsonMode
+import org.bson.json.JsonWriterSettings
 
 class BundleCallback implements StreamCallback {
 
@@ -141,6 +143,9 @@ class BundleCallback implements StreamCallback {
 
             // 2) Sample documents according to strategy
             MongoCollection<Document> coll = db.getCollection(collName)
+            def jsonSettings = JsonWriterSettings.builder()
+                .outputMode(JsonMode.EXTENDED)
+                .build()
             try {
                 if ("random".equalsIgnoreCase(sampleStrategy)) {
                     def pipeline = [
@@ -150,7 +155,8 @@ class BundleCallback implements StreamCallback {
                     // (AggregateIterable doesn't support hintString directly in older drivers; fine for sampling)
                     def iterable = coll.aggregate(pipeline)
                     for (doc in iterable) {
-                        samples.add(Document.parse(doc.toJson()))
+                        def json = doc.toJson(jsonSettings)
+                        samples.add(new JsonSlurper().parseText(json))
                     }
                 } else {
                     // prefix | time_window -> straight find with limit (filters should already constrain time_window)
@@ -169,7 +175,8 @@ class BundleCallback implements StreamCallback {
                     def it = findIt.iterator()
                     while (it.hasNext()) {
                         def doc = it.next()
-                        samples.add(Document.parse(doc.toJson()))
+                        def json = doc.toJson(jsonSettings)
+                        samples.add(new JsonSlurper().parseText(json))
                     }
                 }
             } catch (Exception eAgg) {
@@ -177,7 +184,8 @@ class BundleCallback implements StreamCallback {
                 def it = coll.find(filterDoc).limit(sampleSize).iterator()
                 while (it.hasNext()) {
                     def doc = it.next()
-                    samples.add(Document.parse(doc.toJson()))
+                    def json = doc.toJson(jsonSettings)
+                    samples.add(new JsonSlurper().parseText(json))
                 }
             }
         } finally {

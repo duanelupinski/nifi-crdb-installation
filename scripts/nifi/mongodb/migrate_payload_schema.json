@@ -160,7 +160,7 @@
         },
         "port": {
           "type": "string",
-          "description": "Name of the host used to access your CockroachDB cluster.",
+          "description": "TCP port for SQL connections.",
           "default": "26257"
         },
         "auth": {
