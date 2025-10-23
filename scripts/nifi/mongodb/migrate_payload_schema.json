@@ -665,39 +665,41 @@
                 "description": "Explicit PK columns for this table (overrides defaults)."
               },
               "fk": {
-                "type": "object",
-                "description": "Foreign key definition if the default parent FK isn't correct or for junction tables.",
-                "additionalProperties": false,
-                "properties": {
-                  "parentTable": { "type": "string", "description": "Referenced table name." },
-                  "parentColumns": {
-                    "type": "array",
-                    "items": { "type": "string" },
-                    "description": "Referenced columns on the parent table."
-                  },
-                  "childColumns": {
-                    "type": "array",
-                    "items": { "type": "string" },
-                    "description": "Local columns forming the FK."
-                  },
-                  "onDelete": {
-                    "type": "string",
-                    "enum": ["NO ACTION", "CASCADE", "SET NULL", "RESTRICT"],
-                    "description": "Override the default ON DELETE action."
-                  },
-                  "reverse": {
-                    "type": "boolean",
-                    "description": "Place the FK on the base table pointing to this normalized table.",
-                    "default": false
-                  },
-                  "reverseSpec": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                      "childPkPath": { "type": "string", "description": "Field inside the object to use as the child's PK (e.g., 'id')" },
-                      "baseColumnName": { "type": "string", "description": "Name of the FK column to add on the base table (e.g., 'customer_id')" },
-                      "nullable": { "type": "boolean", "default": false },
-                      "onDelete": { "type": "string", "enum": ["NO ACTION","CASCADE","SET NULL","RESTRICT"] }
+                "type": "array",
+                "items": {
+                  "description": "Foreign key definition if the default parent FK isn't correct or for junction tables.",
+                  "additionalProperties": false,
+                  "properties": {
+                    "parentTable": { "type": "string", "description": "Referenced table name." },
+                    "parentColumns": {
+                      "type": "array",
+                      "items": { "type": "string" },
+                      "description": "Referenced columns on the parent table."
+                    },
+                    "childColumns": {
+                      "type": "array",
+                      "items": { "type": "string" },
+                      "description": "Local columns forming the FK."
+                    },
+                    "onDelete": {
+                      "type": "string",
+                      "enum": ["NO ACTION", "CASCADE", "SET NULL", "RESTRICT"],
+                      "description": "Override the default ON DELETE action."
+                    },
+                    "reverse": {
+                      "type": "boolean",
+                      "description": "Place the FK on the base table pointing to this normalized table.",
+                      "default": false
+                    },
+                    "reverseSpec": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "childPkPath": { "type": "string", "description": "Field inside the object to use as the child's PK (e.g., 'id')" },
+                        "baseColumnName": { "type": "string", "description": "Name of the FK column to add on the base table (e.g., 'customer_id')" },
+                        "nullable": { "type": "boolean", "default": false },
+                        "onDelete": { "type": "string", "enum": ["NO ACTION","CASCADE","SET NULL","RESTRICT"] }
+                      }
                     }
                   }
                 }
