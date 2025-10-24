@@ -868,8 +868,12 @@ def build_mapping(bundle):
                 child_cols.append((leaf, t))
         if not child_cols:
             # Scalar array → single 'value' column
-            merged = inferred.get(subprefix, "STRING")
-            child_cols.append(("value", merged))
+            suppress_elem_value = (mode == "junction_table") and any(
+                _spec_refers_to_element(spec, base_arr) for spec in fk_specs
+            )
+            if not suppress_elem_value:
+                merged = inferred.get(subprefix, "STRING")
+                child_cols.append(("value", merged))
 
         # PK
         pk = tov.get("pk")
@@ -922,7 +926,15 @@ def build_mapping(bundle):
             child["columns"].append(col)
 
         # Override base FK (first spec) if supplied (back-compatible)
-        if fk_specs:
+        def _spec_refers_to_element(spec, arr_path):
+            cc = spec.get("childColumns")
+            if isinstance(cc, str):
+                return cc == arr_path + "[]" or cc == arr_path
+            if isinstance(cc, list):
+                return any(x == arr_path + "[]" or x == arr_path for x in cc)
+            return False
+
+        if fk_specs and not _spec_refers_to_element(fk_specs[0], base_arr):
             fk0 = fk_specs[0]
             child["foreignKey"] = {
                 "parentTable": fk0.get("parentTable", child["foreignKey"]["parentTable"]),
