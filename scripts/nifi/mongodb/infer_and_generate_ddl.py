@@ -866,6 +866,7 @@ def build_mapping(bundle):
                 has_struct_children = True
                 leaf = p.split(".")[-1]
                 child_cols.append((leaf, t))
+        fk_specs = _normalize_fk(tov.get("fk"))
         if not child_cols:
             # Scalar array → single 'value' column
             suppress_elem_value = (mode == "junction_table") and any(
@@ -884,7 +885,6 @@ def build_mapping(bundle):
                 pk = [fk_col, array_index_col]
 
         # Build child table shape
-        fk_specs = _normalize_fk(tov.get("fk"))
         child = {
             "table": target_table,
             "primaryKey": pk,
