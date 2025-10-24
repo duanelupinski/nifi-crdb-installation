@@ -264,12 +264,17 @@ def build_mapping(bundle):
     # --- Base table naming (allow tableOverride on collection path) ---
     base_path = bundle["meta"]["collection"]
     base_override = get_table_override(sc, base_path) or {}
-    # External FK specs on base table (optional): can be a dict or list of dicts
-    base_fk_specs = base_override.get("fk")
-    if base_fk_specs and isinstance(base_fk_specs, dict):
-        base_fk_specs = [base_fk_specs]
-    elif not base_fk_specs:
-        base_fk_specs = []
+
+    # --- helper to normalize fk to list (object|array -> list) ---
+    def _normalize_fk(fk_raw):
+        if fk_raw and isinstance(fk_raw, dict):
+            return [fk_raw]
+        if isinstance(fk_raw, list):
+            return [fk for fk in fk_raw if isinstance(fk, dict)]
+        return []
+
+    # External FK specs on base table (optional)
+    base_fk_specs = _normalize_fk(base_override.get("fk"))
     external_fk_by_child = {}
     for _spec in base_fk_specs:
         child_cols = _spec.get("childColumns")
@@ -279,6 +284,7 @@ def build_mapping(bundle):
             for _c in child_cols:
                 if isinstance(_c, str):
                     external_fk_by_child[_c] = _spec
+
     base_table_name = base_override.get("targetTable") or styled_name(base_path, name_style, ident_max)
     mapping = {"baseTable": base_table_name, "columns": [], "childTables": [], "baseForeignKeys": [], "externalForeignKeys": []}
 
@@ -533,11 +539,11 @@ def build_mapping(bundle):
                 fk_col = styled_name(f"{mapping['baseTable']}_id", name_style, ident_max)
 
                 # Decide FK shape: normal 1:1 child → base OR reverse FK (base → child)
-                fk_ov = tov.get("fk", {}) if isinstance(tov.get("fk"), dict) else {}
-                if fk_ov.get("reverse"):
+                fk_specs = _normalize_fk(tov.get("fk"))
+                if fk_specs and fk_specs[0].get("reverse"):
                     # --- Reverse relationship: BASE references this normalized table ---
                     # Child PK comes from a field inside the object (default: 'id')
-                    rspec = fk_ov.get("reverseSpec", {}) if isinstance(fk_ov.get("reverseSpec"), dict) else {}
+                    rspec = fk_specs[0].get("reverseSpec", {}) if isinstance(fk_specs[0].get("reverseSpec"), dict) else {}
                     child_pk_path = rspec.get("childPkPath", "id")  # e.g., 'id'
                     child_pk_leaf = child_pk_path.split(".")[-1]
                     child_pk_name = styled_name(child_pk_leaf, name_style, ident_max)
@@ -610,7 +616,7 @@ def build_mapping(bundle):
                             "parentTable": mapping["baseTable"],
                             "parentColumns": [styled_name("id", name_style, ident_max)],
                             "childColumns": [fk_col],
-                            "onDelete": tov.get("fk", {}).get("onDelete", fk_on_delete)
+                            "onDelete": ( _normalize_fk(tov.get("fk"))[0].get("onDelete") if _normalize_fk(tov.get("fk")) else fk_on_delete )
                         },
                         "columns": []
                     }
@@ -628,21 +634,31 @@ def build_mapping(bundle):
                         if cf_list:
                             child["columnFamilies"] = cf_list
 
-                    # Optional per-table overrides
-                    if "pk" in tov and tov["pk"]:
-                        child["primaryKey"] = tov["pk"]
-                    if "fk" in tov:
-                        fk = tov["fk"]
+                    # Optional per-table overrides (single-FK override remains supported)
+                    fk_specs = _normalize_fk(tov.get("fk"))
+                    if fk_specs:
+                        # Replace the default parent FK using the first spec (backward compatible)
+                        fk0 = fk_specs[0]
                         child["foreignKey"] = {
-                            "parentTable": fk.get("parentTable", child["foreignKey"]["parentTable"]),
-                            "parentColumns": fk.get("parentColumns", child["foreignKey"]["parentColumns"]),
-                            "childColumns": fk.get("childColumns", child["foreignKey"]["childColumns"]),
-                            "onDelete": fk.get("onDelete", child["foreignKey"]["onDelete"])
+                            "parentTable": fk0.get("parentTable", child["foreignKey"]["parentTable"]),
+                            "parentColumns": fk0.get("parentColumns", child["foreignKey"]["parentColumns"]),
+                            "childColumns": fk0.get("childColumns", child["foreignKey"]["childColumns"]),
+                            "onDelete": fk0.get("onDelete", child["foreignKey"]["onDelete"])
                         }
                     if "indexDefs" in tov:
                         child.setdefault("indexes", []).extend(tov["indexDefs"])
                     if "comment" in tov:
                         child["comment"] = tov["comment"]
+
+                    # ---- NEW: Extra FKs for junction tables (array element references) ----
+                    # For each fk spec, create element-based FK columns on the child table:
+                    #   <elem>_id  (typed to idStrategy)
+                    #   <elem>_<preserveAs> (ONLY if idStrategy != 'use_objectid')
+                    # and add an extra FK to the referenced parentTable.
+                    if fk_specs:
+                        # Determine the base element column naming (consider column override on 'base_arr[]')
+                        # We'll compute this later in the arrays loop where 'base_arr' is known.
+                        pass  # placeholder; actual emission happens in the arrays loop below
 
                     mapping["childTables"].append(child)
                     # mark this object as normalized so its descendants do not go into the base table
@@ -674,8 +690,9 @@ def build_mapping(bundle):
                             if _fk_spec:
                                 # Legacy FK value column (preserve original ObjectId)
                                 _legacy_col = styled_name(f"{child_path}_{preserve_as}", name_style, ident_max)
-                                if not any(c["name"] == _legacy_col for c in mapping["columns"]):
-                                    mapping["columns"].append({"name": _legacy_col, "path": child_path, "type": finalize_type("objectId", child_path)})
+                                if id_strategy != "use_objectid":
+                                    if not any(c["name"] == _legacy_col for c in mapping["columns"]):
+                                        mapping["columns"].append({"name": _legacy_col, "path": child_path, "type": finalize_type("objectId", child_path)})
                                 # Actual FK column typed per id strategy
                                 _fk_col = styled_name(f"{child_path}_id", name_style, ident_max)
                                 _id_type, _, _ = id_type_and_default(id_strategy)
@@ -694,18 +711,19 @@ def build_mapping(bundle):
                                     "onDelete": _fk_spec.get("onDelete") or fk_on_delete
                                 })
                                 # Migration-time lookup hint (for pipeline)
-                                mapping["externalForeignKeys"].append({
-                                    "childField": styled_name(child_path, name_style, ident_max),
-                                    "legacyColumn": _legacy_col,
-                                    "fkColumn": _fk_col,
-                                    "parentTable": styled_name(_parent_table, name_style, ident_max),
-                                    "parentIdColumn": _pc[0],
-                                    "lookup": {
-                                        "from": _legacy_col,
-                                        "toTable": styled_name(_parent_table, name_style, ident_max),
-                                        "toColumn": styled_name(preserve_as if id_strategy != "use_objectid" else "id", name_style, ident_max)
-                                    }
-                                })
+                                if id_strategy != "use_objectid":
+                                    mapping["externalForeignKeys"].append({
+                                        "childField": styled_name(child_path, name_style, ident_max),
+                                        "legacyColumn": _legacy_col,
+                                        "fkColumn": _fk_col,
+                                        "parentTable": styled_name(_parent_table, name_style, ident_max),
+                                        "parentIdColumn": _pc[0],
+                                        "lookup": {
+                                            "from": _legacy_col,
+                                            "toTable": styled_name(_parent_table, name_style, ident_max),
+                                            "toColumn": styled_name(preserve_as if id_strategy != "use_objectid" else "id", name_style, ident_max)
+                                        }
+                                    })
                             else:
                                 raw_t = inferred.get(child_path, "STRING")
                                 ctype = finalize_type(cov.get("crdbType") or raw_t, child_path)
@@ -862,6 +880,7 @@ def build_mapping(bundle):
                 pk = [fk_col, array_index_col]
 
         # Build child table shape
+        fk_specs = _normalize_fk(tov.get("fk"))
         child = {
             "table": target_table,
             "primaryKey": pk,
@@ -869,7 +888,7 @@ def build_mapping(bundle):
                 "parentTable": fk_parent_table,
                 "parentColumns": [fk_parent_pk_col],
                 "childColumns": [fk_col],
-                "onDelete": tov.get("fk", {}).get("onDelete", fk_on_delete)
+                "onDelete": ( fk_specs[0].get("onDelete") if fk_specs else fk_on_delete )
             },
             "columns": []
         }
@@ -902,16 +921,58 @@ def build_mapping(bundle):
                 col["generated"] = cov["generated"]
             child["columns"].append(col)
 
-        # Override FK definition if supplied
-        if "fk" in tov:
-            fk = tov["fk"]
+        # Override base FK (first spec) if supplied (back-compatible)
+        if fk_specs:
+            fk0 = fk_specs[0]
             child["foreignKey"] = {
-                "parentTable": fk.get("parentTable", child["foreignKey"]["parentTable"]),
-                "parentColumns": fk.get("parentColumns", child["foreignKey"]["parentColumns"]),
-                "childColumns": fk.get("childColumns", child["foreignKey"]["childColumns"]),
-                "onDelete": fk.get("onDelete", child["foreignKey"]["onDelete"])
+                "parentTable": fk0.get("parentTable", child["foreignKey"]["parentTable"]),
+                "parentColumns": fk0.get("parentColumns", child["foreignKey"]["parentColumns"]),
+                "childColumns": fk0.get("childColumns", child["foreignKey"]["childColumns"]),
+                "onDelete": fk0.get("onDelete", child["foreignKey"]["onDelete"])
             }
-        
+
+        # ---- NEW: element→external FKs for junction tables ----
+        # If any fk spec references the array element, create columns and extra FKs.
+        if fk_specs:
+            # Base name for the element column (respects column override on 'base_arr[]')
+            cov_elem = get_column_override(sc, base_arr + "[]") or {}
+            elem_base = cov_elem.get("crdbName") or ("value" if not has_struct_children else "value")
+            elem_base = styled_name(elem_base, name_style, ident_max)
+
+            for spec in fk_specs:
+                child_cols_spec = spec.get("childColumns")
+                # Allow either a single string or an array; match the current array path
+                matches_elem = False
+                if isinstance(child_cols_spec, str):
+                    matches_elem = (child_cols_spec == base_arr + "[]" or child_cols_spec == base_arr or child_cols_spec.endswith("[]") and child_cols_spec.split(".")[-1] == base_arr.split(".")[-1])
+                elif isinstance(child_cols_spec, list):
+                    matches_elem = any(cc == base_arr + "[]" for cc in child_cols_spec)
+
+                if not matches_elem:
+                    continue
+
+                # Create <elem>_id and optional <elem>_<preserveAs> on the child table
+                fk_col_name = styled_name(f"{elem_base}_id", name_style, ident_max)
+                if not any(c["name"] == fk_col_name for c in child["columns"]):
+                    child["columns"].append({"name": fk_col_name, "path": None, "type": id_type})
+
+                if id_strategy != "use_objectid":
+                    legacy_col_name = styled_name(f"{elem_base}_{preserve_as}", name_style, ident_max)
+                    if not any(c["name"] == legacy_col_name for c in child["columns"]):
+                        child["columns"].append({"name": legacy_col_name, "path": subprefix, "type": "STRING(24)"})
+
+                # Parent columns default to 'id'
+                parent_cols = spec.get("parentColumns") or ["id"]
+                parent_cols_styled = [styled_name(("id" if (pc == "_id" and id_strategy != "use_objectid") else pc), name_style, ident_max) for pc in parent_cols]
+
+                # Add extra FK from <elem>_id -> parentTable(parentCols)
+                child.setdefault("extraForeignKeys", []).append({
+                    "parentTable": styled_name(spec.get("parentTable") or elem_base, name_style, ident_max),
+                    "parentColumns": parent_cols_styled,
+                    "childColumns": [fk_col_name],
+                    "onDelete": spec.get("onDelete", "CASCADE")
+                })
+
         if tov.get("columnFamilies"):
             cf_list = []
             for fam in tov["columnFamilies"]:
@@ -1040,9 +1101,14 @@ def generate_ddl(mapping):
 
     for ct in mapping["childTables"]:
         cols_sorted = sorted(ct["columns"], key=lambda c: 0 if c.get("primaryKey") else 1)
-        child_fkeys = [ct["foreignKey"]] if ct.get("foreignKey") else None
+        # Support extra foreign keys on child tables (junctions)
+        fks = []
+        if ct.get("foreignKey"):
+            fks.append(ct["foreignKey"])
+        if ct.get("extraForeignKeys"):
+            fks.extend(ct["extraForeignKeys"])
         ddl_parts.append(
-            ddl_for_table(ct["table"], cols_sorted, ct.get("primaryKey"), child_fkeys, ct.get("indexes"), ct.get("comment"), ct.get("columnFamilies"))
+            ddl_for_table(ct["table"], cols_sorted, ct.get("primaryKey"), fks or None, ct.get("indexes"), ct.get("comment"), ct.get("columnFamilies"))
         )
     return "\n".join(ddl_parts)
 
