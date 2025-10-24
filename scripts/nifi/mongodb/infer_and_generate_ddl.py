@@ -414,6 +414,14 @@ def build_mapping(bundle):
             if n not in seen:
                 out.append(n); seen.add(n)
         return out
+    
+    def _spec_refers_to_element(spec, arr_path):
+        cc = spec.get("childColumns")
+        if isinstance(cc, str):
+            return cc == arr_path + "[]" or cc == arr_path
+        if isinstance(cc, list):
+            return any(x == arr_path + "[]" or x == arr_path for x in cc)
+        return False
 
     # --- Non-array paths → columns per strategy ---
     non_array_paths = [p for p in inferred if "[]" not in p]
@@ -635,7 +643,6 @@ def build_mapping(bundle):
                             child["columnFamilies"] = cf_list
 
                     # Optional per-table overrides (single-FK override remains supported)
-                    fk_specs = _normalize_fk(tov.get("fk"))
                     if fk_specs:
                         # Replace the default parent FK using the first spec (backward compatible)
                         fk0 = fk_specs[0]
@@ -926,14 +933,6 @@ def build_mapping(bundle):
             child["columns"].append(col)
 
         # Override base FK (first spec) if supplied (back-compatible)
-        def _spec_refers_to_element(spec, arr_path):
-            cc = spec.get("childColumns")
-            if isinstance(cc, str):
-                return cc == arr_path + "[]" or cc == arr_path
-            if isinstance(cc, list):
-                return any(x == arr_path + "[]" or x == arr_path for x in cc)
-            return False
-
         if fk_specs and not _spec_refers_to_element(fk_specs[0], base_arr):
             fk0 = fk_specs[0]
             child["foreignKey"] = {
