@@ -88,6 +88,15 @@ def walk_types(doc, prefix="", out=None):
                 # { "$timestamp": {...} } -> treat as int (or keep as "object" if you prefer)
                 if set(v.keys()) == {"$timestamp"}:
                     out[path].add("int32"); continue
+                # check for numeric wrappers
+                if set(v.keys()) == {"$numberInt"} and isinstance(v["$numberInt"], (str, int)):
+                    out[path].add("int32"); continue
+                if set(v.keys()) == {"$numberLong"} and isinstance(v["$numberLong"], (str, int)):
+                    out[path].add("int64"); continue
+                if set(v.keys()) == {"$numberDouble"} and isinstance(v["$numberDouble"], (str, float, int)):
+                    out[path].add("double"); continue
+                if set(v.keys()) == {"$numberDecimal"} and isinstance(v["$numberDecimal"], str):
+                    out[path].add("decimal"); continue
                 out[path].add("object"); walk_types(v, path, out)
             elif isinstance(v, list):
                 out[path].add("array")
@@ -101,6 +110,15 @@ def walk_types(doc, prefix="", out=None):
                             out[path+"[]"].add("date"); continue
                         if set(el.keys()) == {"$timestamp"}:
                             out[path+"[]"].add("int32"); continue
+                        # check for numeric wrappers
+                        if set(el.keys()) == {"$numberInt"} and isinstance(el["$numberInt"], (str, int)):
+                            out[path].add("int32"); continue
+                        if set(el.keys()) == {"$numberLong"} and isinstance(el["$numberLong"], (str, int)):
+                            out[path].add("int64"); continue
+                        if set(el.keys()) == {"$numberDouble"} and isinstance(el["$numberDouble"], (str, float, int)):
+                            out[path].add("double"); continue
+                        if set(el.keys()) == {"$numberDecimal"} and isinstance(el["$numberDecimal"], str):
+                            out[path].add("decimal"); continue
                         out[path+"[]"].add("object"); walk_types(el, path+"[]", out)
                     elif isinstance(el, list):
                         out[path+"[]"].add("array")
