@@ -355,10 +355,9 @@ def build_mapping(bundle):
     normalized_owners = set()   # object paths that we turned into child tables
 
     def has_normalized_ancestor(path):
-        anc = path
-        while "." in anc:
-            anc = anc.rsplit(".", 1)[0]
-            if anc in normalized_objects:
+        # a path is "under" a normalized owner if it's owner.* or deeper
+        for owner in normalized_owners:
+            if path.startswith(owner + "."):
                 return True
         return False
     
@@ -463,6 +462,9 @@ def build_mapping(bundle):
         if p in ("_id", "id"):
             continue
         if p in _denylist and not get_column_override(sc, p):
+            continue
+        # if this path lives under a normalized owner, do not emit a base column
+        if _is_under_normalized_owner(p) or has_normalized_ancestor(p):
             continue
         cov_for_name = get_column_override(sc, p) or {}
         derived_name = styled_name(cov_for_name.get("crdbName") or p, name_style, ident_max)
