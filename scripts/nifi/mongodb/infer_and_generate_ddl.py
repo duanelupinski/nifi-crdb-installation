@@ -536,23 +536,30 @@ def build_mapping(bundle):
                     }
                     mapping["childTables"].append(child)
                 else:
-                    rspec = fk_specs[0].get("reverseSpec", {}) if isinstance(fk_specs[0].get("reverseSpec"), dict) else {}
+                    # reverse relationship: BASE references this child table
+                    fk_spec = fk_specs[0] if isinstance(fk_specs, list) and fk_specs else {}
+                    rspec = fk_spec.get("reverseSpec", {}) if isinstance(fk_spec, dict) else {}
+
+                    # 1) Ensure the child PK column exists (from childPkPath)
                     child_pk_path = rspec.get("childPkPath", "id")
                     child_pk_leaf = child_pk_path.split(".")[-1]
                     child_pk_name = styled_name(child_pk_leaf, name_style, ident_max)
-                    child_pk_full_path = f"{p}.{child_pk_path}"
-                    cov_pk = get_column_override(sc, child_pk_full_path) or {}
-                    raw_t = inferred.get(child_pk_full_path, "STRING")
-                    child_pk_type = finalize_type(cov_pk.get("crdbType") or raw_t, child_pk_full_path)
+                    child_pk_full = f"{p}.{child_pk_path}"
+
+                    cov_pk = get_column_override(sc, child_pk_full) or {}
+                    raw_t = inferred.get(child_pk_full, "STRING")
+                    child_pk_type = finalize_type(cov_pk.get("crdbType") or raw_t, child_pk_full)
+
                     if not any(c["name"] == child_pk_name for c in child_cols):
                         child_cols.insert(0, {
                             "name": styled_name(cov_pk.get("crdbName") or child_pk_leaf, name_style, ident_max),
-                            "path": child_pk_full_path,
+                            "path": child_pk_full,
                             "type": child_pk_type,
-                            "nullable": False,
-                            **({"default": cov_pk["default"]} if "default" in cov_pk else {})
+                            "nullable": False
                         })
                         child_pk_name = styled_name(cov_pk.get("crdbName") or child_pk_leaf, name_style, ident_max)
+
+                    # 2) Emit the child table (PK is child_pk_name)
                     child = {
                         "table": target_table,
                         "primaryKey": [child_pk_name],
@@ -560,6 +567,32 @@ def build_mapping(bundle):
                     }
                     mapping["childTables"].append(child)
 
+                    # 3) Add a base column (e.g., products.image_id) + FK to child PK
+                    base_col_name = styled_name(rspec.get("baseColumnName") or f"{p}_id", name_style, ident_max)
+                    base_col_type = child_pk_type  # make base column match the child PK type
+
+                    # Add the base column once
+                    if not any(c["name"] == base_col_name for c in mapping["columns"]):
+                        base_col = {"name": base_col_name, "path": None, "type": base_col_type}
+                        if rspec.get("nullable") is False:
+                            base_col["nullable"] = False
+                        mapping["columns"].append(base_col)
+
+                    # Add FK on products(base_col_name) -> child(target_table.child_pk_name)
+                    mapping["baseForeignKeys"].append({
+                        "parentTable": target_table,
+                        "parentColumns": [child_pk_name],
+                        "childColumns": [base_col_name],
+                        "onDelete": rspec.get("onDelete") or fk_on_delete
+                    })
+
+                    # (Optional) Enforce 1:1 by making base column UNIQUE (uncomment if desired)
+                    mapping.setdefault("uniqueIndexes", []).append({
+                        "name": styled_name(f"uniq_{base_table_name}_{base_col_name}", name_style, ident_max),
+                        "columns": [base_col_name]
+                    })
+
+                # 4) Mark as normalized owner
                 normalized_tables[p] = target_table
                 normalized_owners.add(p)
 
