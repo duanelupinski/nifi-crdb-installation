@@ -478,6 +478,79 @@ def build_mapping(bundle):
         if is_array_path(p, inferred):
             continue
 
+        def _normalize_object_to_child_table(p, tov):
+                # Helper extracted from normalize branch to build a 1:1 child table for object path p
+                child_cols = []
+                for child in immediate_children(p, inferred):
+                    child_path = f"{p}.{child}"
+                    if ignored_path(sc, child_path):
+                        continue
+                    cov = get_column_override(sc, child_path) or {}
+                    if cov.get("action") == "ignore":
+                        continue
+                    if is_array_path(child_path, inferred):
+                        continue
+                    if has_children(child_path, inferred):
+                        cname = styled_name(cov.get("crdbName") or child_path, name_style, ident_max)
+                        ctype = cov.get("crdbType") or "JSON"
+                        child_cols.append({"name": cname, "path": child_path, "type": ctype})
+                        jsonified_objects.add(child_path)
+                    else:
+                        raw_t = inferred.get(child_path, "STRING")
+                        ctype = finalize_type(cov.get("crdbType") or raw_t, child_path)
+                        cname = styled_name(cov.get("crdbName") or child_path, name_style, ident_max)
+                        col = {"name": cname, "path": child_path, "type": ctype}
+                        if "nullable" in cov: col["nullable"] = cov["nullable"]
+                        if "default"  in cov: col["default"]  = cov["default"]
+                        if "generated" in cov and cov["generated"].get("expr"):
+                            col["generated"] = cov["generated"]
+                        child_cols.append(col)
+
+                target_table = styled_name(tov.get("tableName") or p, name_style, ident_max)
+
+                fk_specs = get_fk_override(sc, p) or []
+                fk_specs = fk_specs if isinstance(fk_specs, list) else ([fk_specs] if fk_specs else [])
+
+                if not fk_specs:
+                    child = {
+                        "table": target_table,
+                        "primaryKey": ["id"],
+                        "columns": child_cols,
+                        "foreignKeys": [{
+                            "parentTable": base_table_name,
+                            "parentColumns": ["id"],
+                            "childColumns": ["id"],
+                            "onDelete": fk_on_delete
+                        }]
+                    }
+                    mapping["childTables"].append(child)
+                else:
+                    rspec = fk_specs[0].get("reverseSpec", {}) if isinstance(fk_specs[0].get("reverseSpec"), dict) else {}
+                    child_pk_path = rspec.get("childPkPath", "id")
+                    child_pk_leaf = child_pk_path.split(".")[-1]
+                    child_pk_name = styled_name(child_pk_leaf, name_style, ident_max)
+                    child_pk_full_path = f"{p}.{child_pk_path}"
+                    cov_pk = get_column_override(sc, child_pk_full_path) or {}
+                    raw_t = inferred.get(child_pk_full_path, "STRING")
+                    child_pk_type = finalize_type(cov_pk.get("crdbType") or raw_t, child_pk_full_path)
+                    if not any(c["name"] == child_pk_name for c in child_cols):
+                        child_cols.insert(0, {
+                            "name": styled_name(cov_pk.get("crdbName") or child_pk_leaf, name_style, ident_max),
+                            "path": child_pk_full_path,
+                            "type": child_pk_type,
+                            "nullable": False,
+                            **({"default": cov_pk["default"]} if "default" in cov_pk else {})
+                        })
+                        child_pk_name = styled_name(cov_pk.get("crdbName") or child_pk_leaf, name_style, ident_max)
+                    child = {
+                        "table": target_table,
+                        "primaryKey": [child_pk_name],
+                        "columns": child_cols
+                    }
+                    mapping["childTables"].append(child)
+
+                normalized_tables[p] = target_table
+
         if has_children(p, inferred):
             if default_strategy == "jsonb":
                 cov = get_column_override(sc, p) or {}
@@ -494,13 +567,10 @@ def build_mapping(bundle):
                     for child in immediate_children(p, inferred):
                         child_path = f"{p}.{child}"
                         if (segs(child_path) - segs(p)) <= flatten_depth:
-                            if ignored_path(sc, child_path): 
+                            if ignored_path(sc, child_path) or is_array_path(child_path, inferred):
                                 continue
                             cov = get_column_override(sc, child_path) or {}
                             if cov.get("action") == "ignore":
-                                continue
-                            # don't emit JSON + child table for arrays
-                            if is_array_path(child_path, inferred):
                                 continue
                             if has_children(child_path, inferred):
                                 # child object → JSON at this depth
@@ -522,173 +592,10 @@ def build_mapping(bundle):
                                 mapping["columns"].append({"name": cname, "path": p, "type": ctype})
                                 jsonified_objects.add(p)
                     continue
-                
-                # Collect immediate scalar children (object children become their own tables later)
-                child_cols = []
-                for child in immediate_children(p, inferred):
-                    child_path = f"{p}.{child}"
-                    if ignored_path(sc, child_path): 
-                        continue
-                    cov = get_column_override(sc, child_path) or {}
-                    if cov.get("action") == "ignore":
-                        continue
-                    # if the child is an array owner, let the arrays loop handle it
-                    if is_array_path(child_path, inferred):
-                        continue
-                    if has_children(child_path, inferred):
-                        # this child is an object; it will be handled in a later iteration as its own table
-                        continue
-                    # Denylist based on *derived* column name (post-override + styling)
-                    cname = styled_name(cov.get("crdbName") or child_path, name_style, ident_max)
-                    if (cname in _denylist or child_path in _denylist_raw_paths) and not cov:
-                        continue
-                    raw_t = inferred.get(child_path, "STRING")
-                    ctype = finalize_type(cov.get("crdbType") or raw_t, child_path)
-                    cname = styled_name(cov.get("crdbName") or child, name_style, ident_max)
-                    col = {"name": cname, "path": child_path, "type": ctype}
-                    if "nullable" in cov: col["nullable"] = cov["nullable"]
-                    if "default" in cov: col["default"] = cov["default"]
-                    if "generated" in cov and cov["generated"].get("expr"):
-                        col["generated"] = cov["generated"]
-                    child_cols.append(col)
-                    
-                # If this object has *no immediate scalar fields*, don't create an empty table.
-                # (Its nested objects will be handled on their own iterations.)
-                if not child_cols:
-                    # Do NOT mark this object as normalized; we still need to process its child objects.
-                    # e.g., 'shipping' → no table; 'shipping.address' / 'shipping.location' will become tables.
-                    continue
+                _normalize_object_to_child_table(p, tov)
+                continue
 
-                # Create a 1:1 child table for this object path
-                tov = get_table_override(sc, p) or {}
-                target_table = tov.get("targetTable") or styled_name(p, name_style, ident_max)
-                fk_col = styled_name(f"{mapping['baseTable']}_id", name_style, ident_max)
-
-                # Decide FK shape: normal 1:1 child → base OR reverse FK (base → child)
-                fk_specs = _normalize_fk(tov.get("fk"))
-                if fk_specs and fk_specs[0].get("reverse"):
-                    # --- Reverse relationship: BASE references this normalized table ---
-                    # Child PK comes from a field inside the object (default: 'id')
-                    rspec = fk_specs[0].get("reverseSpec", {}) if isinstance(fk_specs[0].get("reverseSpec"), dict) else {}
-                    child_pk_path = rspec.get("childPkPath", "id")  # e.g., 'id'
-                    child_pk_leaf = child_pk_path.split(".")[-1]
-                    child_pk_name = styled_name(child_pk_leaf, name_style, ident_max)
-                    child_pk_full_path = f"{p}.{child_pk_path}"
-                    cov_pk = get_column_override(sc, child_pk_full_path) or {}
-                    raw_t = inferred.get(child_pk_full_path, "STRING")
-                    child_pk_type = finalize_type(cov_pk.get("crdbType") or raw_t, child_pk_full_path)
-
-                    # ensure PK column exists once in the child columns
-                    if not any(c["name"] == child_pk_name for c in child_cols):
-                        child_cols.insert(0, {
-                            "name": styled_name(cov_pk.get("crdbName") or child_pk_leaf, name_style, ident_max),
-                            "path": child_pk_full_path,
-                            "type": child_pk_type,
-                            "nullable": False,
-                            **({"default": cov_pk["default"]} if "default" in cov_pk else {})
-                        })
-                        # update variable if name was overridden
-                        child_pk_name = styled_name(cov_pk.get("crdbName") or child_pk_leaf, name_style, ident_max)
-
-                    # Build child table with its own PK, and NO FK to base
-                    child = {
-                        "table": target_table,
-                        "primaryKey": [child_pk_name],
-                        "columns": child_cols
-                    }
-
-                    # Add FK column on the BASE table to point to this child
-                    base_fk_name = styled_name(rspec.get("baseColumnName") or f"{p.split('.')[-1]}_id", name_style, ident_max)
-                    base_fk_nullable = bool(rspec.get("nullable", False))
-
-                    # add/ensure the FK column on base
-                    if not any(c["name"] == base_fk_name for c in mapping["columns"]):
-                        mapping["columns"].append({
-                            "name": base_fk_name,
-                            "path": child_pk_full_path,
-                            "type": child_pk_type,
-                            "nullable": base_fk_nullable
-                        })
-
-                    # table-level FK on base → child
-                    mapping.setdefault("baseForeignKeys", []).append({
-                        "parentTable": target_table,         # referenced table = CHILD
-                        "parentColumns": [child_pk_name],    # referenced col(s) on CHILD
-                        "childColumns": [base_fk_name],      # column on BASE
-                        "onDelete": rspec.get("onDelete", "CASCADE")
-                    })
-
-                    # Attach column families (if any) to this child table
-                    if tov.get("columnFamilies"):
-                        cf_list = []
-                        for fam in tov["columnFamilies"]:
-                            cols = resolve_family_columns(fam, child["columns"], name_style, ident_max)
-                            if cols:
-                                cf_list.append({"name": styled_name(fam["name"], name_style, ident_max), "columns": cols})
-                        if cf_list:
-                            child["columnFamilies"] = cf_list
-
-                    # finalize & record normalization
-                    mapping["childTables"].append(child)
-                    normalized_objects.add(p)
-                    normalized_tables[p] = target_table
-
-                else:
-                    # Build child table (1:1 with parent) → PK = <parent>_id
-                    child = {
-                        "table": target_table,
-                        "primaryKey": [fk_col],
-                        "foreignKey": {
-                            "parentTable": mapping["baseTable"],
-                            "parentColumns": [styled_name("id", name_style, ident_max)],
-                            "childColumns": [fk_col],
-                            "onDelete": ( _normalize_fk(tov.get("fk"))[0].get("onDelete") if _normalize_fk(tov.get("fk")) else fk_on_delete )
-                        },
-                        "columns": []
-                    }
-                    # FK to parent
-                    child["columns"].append({"name": fk_col, "path": "_id", "type": id_type, "nullable": False})
-                    # Add the scalar columns we collected
-                    child["columns"].extend(child_cols)
-
-                    if tov.get("columnFamilies"):
-                        cf_list = []
-                        for fam in tov["columnFamilies"]:
-                            cols = resolve_family_columns(fam, child["columns"], name_style, ident_max)
-                            if cols:
-                                cf_list.append({"name": styled_name(fam["name"], name_style, ident_max), "columns": cols})
-                        if cf_list:
-                            child["columnFamilies"] = cf_list
-
-                    # Optional per-table overrides (single-FK override remains supported)
-                    if fk_specs:
-                        # Replace the default parent FK using the first spec (backward compatible)
-                        fk0 = fk_specs[0]
-                        child["foreignKey"] = {
-                            "parentTable": fk0.get("parentTable", child["foreignKey"]["parentTable"]),
-                            "parentColumns": fk0.get("parentColumns", child["foreignKey"]["parentColumns"]),
-                            "childColumns": fk0.get("childColumns", child["foreignKey"]["childColumns"]),
-                            "onDelete": fk0.get("onDelete", child["foreignKey"]["onDelete"])
-                        }
-                    if "indexDefs" in tov:
-                        child.setdefault("indexes", []).extend(tov["indexDefs"])
-                    if "comment" in tov:
-                        child["comment"] = tov["comment"]
-
-                    # ---- NEW: Extra FKs for junction tables (array element references) ----
-                    # For each fk spec, create element-based FK columns on the child table:
-                    #   <elem>_id  (typed to idStrategy)
-                    #   <elem>_<preserveAs> (ONLY if idStrategy != 'use_objectid')
-                    # and add an extra FK to the referenced parentTable.
-                    if fk_specs:
-                        # Determine the base element column naming (consider column override on 'base_arr[]')
-                        # We'll compute this later in the arrays loop where 'base_arr' is known.
-                        pass  # placeholder; actual emission happens in the arrays loop below
-
-                    mapping["childTables"].append(child)
-                    # mark this object as normalized so its descendants do not go into the base table
-                    normalized_objects.add(p)
-                    normalized_tables[p] = target_table
+            # default for columnize: inline immediate scalar children; JSON for nested objects
             elif default_strategy == "columnize":
                 tov = get_table_override(sc, p) or {}
                 mode = (tov.get("mode") or "columnize")
@@ -704,60 +611,20 @@ def build_mapping(bundle):
                     continue
 
                 if mode == "child_table":
-                    # REUSE the same code path you have under the "normalize" branch
-                    # that builds child_cols, target_table, PK/FK, and appends mapping["childTables"].
-                    # Easiest is to factor that normalize-to-child logic into a helper
-                    # and call it from here with (p, tov), then `continue`.
-                    # (Copying the block also works if you’re in a hurry.)
-                    # build_child_table_for_object(p, tov)
-                    ...
+                    _normalize_object_to_child_table(p, tov)
                     continue
 
-                # default for columnize: inline immediate scalar children; JSON for nested objects
-                for child in immediate_children(p, inferred):
-                    child_path = f"{p}.{child}"
-                    if (segs(child_path) - segs(p)) <= flatten_depth:
-                        if ignored_path(sc, child_path) or is_array_path(child_path, inferred):
-                            continue
-                        cov = get_column_override(sc, child_path) or {}
-                        if cov.get("action") == "ignore":
-                            continue
-                        if has_children(child_path, inferred):
-                            cname = styled_name(cov.get("crdbName") or child_path, name_style, ident_max)
-                            ctype = cov.get("crdbType") or "JSON"
-                            mapping["columns"].append({"name": cname, "path": child_path, "type": ctype})
-                            jsonified_objects.add(child_path)
-                        else:
-                            raw_t = inferred.get(child_path, "STRING")
-                            ctype = finalize_type(cov.get("crdbType") or raw_t, child_path)
-                            cname = styled_name(cov.get("crdbName") or child, name_style, ident_max)
-                            col = {"name": cname, "path": child_path, "type": ctype}
-                            if "nullable" in cov: col["nullable"] = cov["nullable"]
-                            if "default"  in cov: col["default"]  = cov["default"]
-                            if "generated" in cov and cov["generated"].get("expr"):
-                                col["generated"] = cov["generated"]
-                            mapping["columns"].append(col)
-                    else:
-                        cov = get_column_override(sc, p) or {}
-                        if cov.get("action") != "ignore":
-                            cname = styled_name(cov.get("crdbName") or p, name_style, ident_max)
-                            ctype = cov.get("crdbType") or "JSON"
-                            mapping["columns"].append({"name": cname, "path": p, "type": ctype})
-                            jsonified_objects.add(p)
-                continue
-            else:
-                # columnize:
                 if segs(p) <= flatten_depth:
-                    # Inline immediate children:
                     for child in immediate_children(p, inferred):
                         child_path = f"{p}.{child}"
-                        if ignored_path(sc, child_path): continue
+                        if ignored_path(sc, child_path): 
+                            continue
                         cov = get_column_override(sc, child_path) or {}
-                        if cov.get("action") == "ignore": continue
-                        # if the child is an array owner, don't emit a parent JSON column for it
-                        if is_array_path(child_path, inferred): continue
+                        if cov.get("action") == "ignore": 
+                            continue
+                        if is_array_path(child_path, inferred): 
+                            continue
 
-                        # If child is an object → emit JSON (do not flatten grandchildren at this depth)
                         if has_children(child_path, inferred):
                             # emit JSON for child object, and suppress deeper descendants
                             cname = styled_name(cov.get("crdbName") or child_path, name_style, ident_max)
@@ -818,7 +685,8 @@ def build_mapping(bundle):
                         ctype = cov.get("crdbType") or "JSON"
                         mapping["columns"].append({"name": cname, "path": p, "type": ctype})
                         jsonified_objects.add(p)
-            continue
+                continue
+
         else:
             # In normalize mode, nested scalars belong to their object's table, not the base
             if default_strategy == "normalize" and "." in p:
