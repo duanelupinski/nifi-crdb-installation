@@ -689,6 +689,62 @@ def build_mapping(bundle):
                     # mark this object as normalized so its descendants do not go into the base table
                     normalized_objects.add(p)
                     normalized_tables[p] = target_table
+            elif default_strategy == "columnize":
+                tov = get_table_override(sc, p) or {}
+                mode = (tov.get("mode") or "columnize")
+
+                if mode == "jsonb":
+                    # emit JSON column for the whole object
+                    cov = get_column_override(sc, p) or {}
+                    if cov.get("action") != "ignore":
+                        cname = styled_name(cov.get("crdbName") or p, name_style, ident_max)
+                        ctype = cov.get("crdbType") or "JSON"
+                        mapping["columns"].append({"name": cname, "path": p, "type": ctype})
+                        jsonified_objects.add(p)
+                    continue
+
+                if mode == "child_table":
+                    # REUSE the same code path you have under the "normalize" branch
+                    # that builds child_cols, target_table, PK/FK, and appends mapping["childTables"].
+                    # Easiest is to factor that normalize-to-child logic into a helper
+                    # and call it from here with (p, tov), then `continue`.
+                    # (Copying the block also works if you’re in a hurry.)
+                    # build_child_table_for_object(p, tov)
+                    ...
+                    continue
+
+                # default for columnize: inline immediate scalar children; JSON for nested objects
+                for child in immediate_children(p, inferred):
+                    child_path = f"{p}.{child}"
+                    if (segs(child_path) - segs(p)) <= flatten_depth:
+                        if ignored_path(sc, child_path) or is_array_path(child_path, inferred):
+                            continue
+                        cov = get_column_override(sc, child_path) or {}
+                        if cov.get("action") == "ignore":
+                            continue
+                        if has_children(child_path, inferred):
+                            cname = styled_name(cov.get("crdbName") or child_path, name_style, ident_max)
+                            ctype = cov.get("crdbType") or "JSON"
+                            mapping["columns"].append({"name": cname, "path": child_path, "type": ctype})
+                            jsonified_objects.add(child_path)
+                        else:
+                            raw_t = inferred.get(child_path, "STRING")
+                            ctype = finalize_type(cov.get("crdbType") or raw_t, child_path)
+                            cname = styled_name(cov.get("crdbName") or child, name_style, ident_max)
+                            col = {"name": cname, "path": child_path, "type": ctype}
+                            if "nullable" in cov: col["nullable"] = cov["nullable"]
+                            if "default"  in cov: col["default"]  = cov["default"]
+                            if "generated" in cov and cov["generated"].get("expr"):
+                                col["generated"] = cov["generated"]
+                            mapping["columns"].append(col)
+                    else:
+                        cov = get_column_override(sc, p) or {}
+                        if cov.get("action") != "ignore":
+                            cname = styled_name(cov.get("crdbName") or p, name_style, ident_max)
+                            ctype = cov.get("crdbType") or "JSON"
+                            mapping["columns"].append({"name": cname, "path": p, "type": ctype})
+                            jsonified_objects.add(p)
+                continue
             else:
                 # columnize:
                 if segs(p) <= flatten_depth:
