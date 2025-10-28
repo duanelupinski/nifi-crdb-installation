@@ -508,8 +508,9 @@ def build_mapping(bundle):
 
                 target_table = styled_name(tov.get("tableName") or p, name_style, ident_max)
 
-                fk_specs = get_fk_override(sc, p) or []
-                fk_specs = fk_specs if isinstance(fk_specs, list) else ([fk_specs] if fk_specs else [])
+                fk_specs = tov.get("fk")
+                if not isinstance(fk_specs, list):
+                    fk_specs = [fk_specs] if fk_specs else []
 
                 if not fk_specs:
                     child = {
