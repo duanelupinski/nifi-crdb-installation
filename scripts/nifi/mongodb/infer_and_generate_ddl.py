@@ -352,6 +352,7 @@ def build_mapping(bundle):
     
     # Tracks object paths we "normalized" into child tables to avoid adding their descendants to the base table
     normalized_objects = set()
+    normalized_owners = set()   # object paths that we turned into child tables
 
     def has_normalized_ancestor(path):
         anc = path
@@ -439,6 +440,13 @@ def build_mapping(bundle):
             return cc == arr_path + "[]" or cc == arr_path
         if isinstance(cc, list):
             return any(x == arr_path + "[]" or x == arr_path for x in cc)
+        return False
+    
+    def _is_under_normalized_owner(path: str) -> bool:
+        # True if path == owner or path is a descendant (owner.*)
+        for owner in normalized_owners:
+            if path == owner or path.startswith(owner + "."):
+                return True
         return False
 
     # --- Non-array paths → columns per strategy ---
@@ -551,6 +559,7 @@ def build_mapping(bundle):
                     mapping["childTables"].append(child)
 
                 normalized_tables[p] = target_table
+                normalized_owners.add(p)
 
         if has_children(p, inferred):
             if default_strategy == "jsonb":
@@ -615,9 +624,16 @@ def build_mapping(bundle):
                     _normalize_object_to_child_table(p, tov)
                     continue
 
+                # if this owner was normalized elsewhere, do nothing here
+                if _is_under_normalized_owner(p):
+                    continue
+
                 if segs(p) <= flatten_depth:
                     for child in immediate_children(p, inferred):
                         child_path = f"{p}.{child}"
+                        # suppress any child under a normalized owner
+                        if _is_under_normalized_owner(child_path):
+                            continue
                         if ignored_path(sc, child_path): 
                             continue
                         cov = get_column_override(sc, child_path) or {}
