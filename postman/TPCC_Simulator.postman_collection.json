@@ -1,0 +1,520 @@
+{
+	"info": {
+		"_postman_id": "198f0403-a929-46db-b4e4-3741d1d09049",
+		"name": "TPCC Simulator",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "2118422"
+	},
+	"item": [
+		{
+			"name": "Execute Test",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"primaryNode\": \"192.168.1.61\",\r\n    \"test\": {\r\n        \"iteration\": 1,\r\n        \"warehouses\": 10\r\n    },\r\n    \"host\": {\r\n        \"machine\": \"sd30\",\r\n        \"username\": \"jleelong\"\r\n    },\r\n    \"terraform\": {\r\n        \"apply\": true,\r\n        \"destroy\": false,\r\n        \"resource\": \"virtualbox_vm\",\r\n        \"name\": \"node\",\r\n        \"path\": \"/home/jleelong/workspace/nifi-flows/terraform/vbox/tpcc\"\r\n    },\r\n    \"database\": {\r\n        \"setup\": true,\r\n        \"initialize\": true,\r\n        \"destroy\": true,\r\n        \"map\": {\r\n            \"pg-large\": {\r\n                \"address\": \"192.168.1.14\",\r\n                \"connections\": 256,\r\n                \"cpus\": 8,\r\n                \"warehouses\": 800\r\n            },\r\n            \"pg-medium\": {\r\n                \"address\": \"192.168.1.16\",\r\n                \"connections\": 128,\r\n                \"cpus\": 4,\r\n                \"warehouses\": 400\r\n            },\r\n            \"pg-small\": {\r\n                \"address\": \"192.168.1.15\",\r\n                \"connections\": 64,\r\n                \"cpus\": 2,\r\n                \"warehouses\": 200\r\n            }\r\n        }\r\n    }\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://192.168.1.61:8081/executeTest",
+					"protocol": "https",
+					"host": [
+						"192",
+						"168",
+						"1",
+						"61"
+					],
+					"port": "8081",
+					"path": [
+						"executeTest"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Process Groups",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://192.168.1.61:9443/nifi-api/flow/process-groups/root/status",
+					"protocol": "https",
+					"host": [
+						"192",
+						"168",
+						"1",
+						"61"
+					],
+					"port": "9443",
+					"path": [
+						"nifi-api",
+						"flow",
+						"process-groups",
+						"root",
+						"status"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Controller Services",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://192.168.1.61:9443/nifi-api/flow/process-groups/25946105-0187-1000-0000-00003a67dde3/controller-services",
+					"protocol": "https",
+					"host": [
+						"192",
+						"168",
+						"1",
+						"61"
+					],
+					"port": "9443",
+					"path": [
+						"nifi-api",
+						"flow",
+						"process-groups",
+						"25946105-0187-1000-0000-00003a67dde3",
+						"controller-services"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get NiFi Details",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://192.168.1.61:9443/nifi-api/flow/about",
+					"protocol": "https",
+					"host": [
+						"192",
+						"168",
+						"1",
+						"61"
+					],
+					"port": "9443",
+					"path": [
+						"nifi-api",
+						"flow",
+						"about"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create DBCP Lookup",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n\t\"revision\": {\r\n\t\t\"version\": 0\r\n\t},\r\n    \"disconnectedNodeAcknowledged\": false,\r\n    \"component\": {\r\n        \"name\": \"DBCPConnectionPoolLookup TPCC\",\r\n        \"type\": \"org.apache.nifi.dbcp.DBCPConnectionPoolLookup\",\r\n        \"bundle\": {\r\n            \"group\": \"org.apache.nifi\",\r\n            \"artifact\": \"nifi-dbcp-service-nar\",\r\n            \"version\": \"1.20.0\"\r\n        }\r\n    }\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://192.168.1.61:9443/nifi-api/process-groups/25946105-0187-1000-0000-00003a67dde3/controller-services",
+					"protocol": "https",
+					"host": [
+						"192",
+						"168",
+						"1",
+						"61"
+					],
+					"port": "9443",
+					"path": [
+						"nifi-api",
+						"process-groups",
+						"25946105-0187-1000-0000-00003a67dde3",
+						"controller-services"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create DB Conn Pool",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n\t\"revision\": {\r\n\t\t\"version\": 0\r\n\t},\r\n    \"disconnectedNodeAcknowledged\": false,\r\n    \"component\": {\r\n        \"name\": \"DBCPConnectionPool pgdb1\",\r\n        \"type\": \"org.apache.nifi.dbcp.DBCPConnectionPool\",\r\n        \"bundle\": {\r\n            \"group\": \"org.apache.nifi\",\r\n            \"artifact\": \"nifi-dbcp-service-nar\",\r\n            \"version\": \"1.20.0\"\r\n        }\r\n    }\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://192.168.1.61:9443/nifi-api/controller/controller-services",
+					"protocol": "https",
+					"host": [
+						"192",
+						"168",
+						"1",
+						"61"
+					],
+					"port": "9443",
+					"path": [
+						"nifi-api",
+						"controller",
+						"controller-services"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update DB Conn Pool",
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n\t\"revision\": {\r\n\t\t\"version\": 1\r\n\t},\r\n    \"component\": {\r\n        \"id\": \"73bd487e-0187-1000-0000-0000139a728e\",\r\n        \"properties\": {\r\n            \"Database Connection URL\": \"jdbc:postgresql://192.168.56.158:5432/postgres\",\r\n            \"Database Driver Class Name\": \"org.postgresql.Driver\",\r\n            \"database-driver-locations\": \"/usr/local/var/postgres/\",\r\n            \"Database User\": \"postgres\",\r\n            \"Password\": \"postgres\"\r\n        }\r\n    }\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://192.168.1.61:9443/nifi-api/controller-services/73bd487e-0187-1000-0000-0000139a728e",
+					"protocol": "https",
+					"host": [
+						"192",
+						"168",
+						"1",
+						"61"
+					],
+					"port": "9443",
+					"path": [
+						"nifi-api",
+						"controller-services",
+						"73bd487e-0187-1000-0000-0000139a728e"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Enable DB Conn Pool",
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n\t\"revision\": {\r\n\t\t\"version\": 2\r\n\t},\r\n    \"state\": \"ENABLED\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://192.168.1.61:9443/nifi-api/controller-services/73bd487e-0187-1000-0000-0000139a728e/run-status",
+					"protocol": "https",
+					"host": [
+						"192",
+						"168",
+						"1",
+						"61"
+					],
+					"port": "9443",
+					"path": [
+						"nifi-api",
+						"controller-services",
+						"73bd487e-0187-1000-0000-0000139a728e",
+						"run-status"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get DB Conn Pool",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://192.168.1.61:9443/nifi-api/controller-services/73bd487e-0187-1000-0000-0000139a728e",
+					"protocol": "https",
+					"host": [
+						"192",
+						"168",
+						"1",
+						"61"
+					],
+					"port": "9443",
+					"path": [
+						"nifi-api",
+						"controller-services",
+						"73bd487e-0187-1000-0000-0000139a728e"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get DBCP Lookup",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://192.168.1.61:9443/nifi-api/controller-services/54c1f352-c922-387c-a396-2264a629e349",
+					"protocol": "https",
+					"host": [
+						"192",
+						"168",
+						"1",
+						"61"
+					],
+					"port": "9443",
+					"path": [
+						"nifi-api",
+						"controller-services",
+						"54c1f352-c922-387c-a396-2264a629e349"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update DBCP Lookup",
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n\t\"revision\": {\r\n\t\t\"version\": 12\r\n\t},\r\n    \"component\": {\r\n        \"id\": \"54c1f352-c922-387c-a396-2264a629e349\",\r\n        \"properties\": {\r\n            \"pgdb1\": null\r\n        }\r\n    }\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://192.168.1.61:9443/nifi-api/controller-services/54c1f352-c922-387c-a396-2264a629e349",
+					"protocol": "https",
+					"host": [
+						"192",
+						"168",
+						"1",
+						"61"
+					],
+					"port": "9443",
+					"path": [
+						"nifi-api",
+						"controller-services",
+						"54c1f352-c922-387c-a396-2264a629e349"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Enable DBCP Lookup",
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n\t\"revision\": {\r\n\t\t\"version\": 4\r\n\t},\r\n    \"state\": \"ENABLED\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://192.168.1.61:9443/nifi-api/controller-services/73a0eb77-0187-1000-0000-00006a2c1f63/run-status",
+					"protocol": "https",
+					"host": [
+						"192",
+						"168",
+						"1",
+						"61"
+					],
+					"port": "9443",
+					"path": [
+						"nifi-api",
+						"controller-services",
+						"73a0eb77-0187-1000-0000-00006a2c1f63",
+						"run-status"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Disable DBCP Lookup",
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n\t\"revision\": {\r\n\t\t\"version\": 4\r\n\t},\r\n    \"state\": \"ENABLED\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://192.168.1.61:9443/nifi-api/controller-services/73a0eb77-0187-1000-0000-00006a2c1f63/run-status",
+					"protocol": "https",
+					"host": [
+						"192",
+						"168",
+						"1",
+						"61"
+					],
+					"port": "9443",
+					"path": [
+						"nifi-api",
+						"controller-services",
+						"73a0eb77-0187-1000-0000-00006a2c1f63",
+						"run-status"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Disable DB Conn Pool",
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n\t\"revision\": {\r\n\t\t\"version\": 2\r\n\t},\r\n    \"state\": \"ENABLED\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://192.168.1.61:9443/nifi-api/controller-services/73bd487e-0187-1000-0000-0000139a728e/run-status",
+					"protocol": "https",
+					"host": [
+						"192",
+						"168",
+						"1",
+						"61"
+					],
+					"port": "9443",
+					"path": [
+						"nifi-api",
+						"controller-services",
+						"73bd487e-0187-1000-0000-0000139a728e",
+						"run-status"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Delete DB Conn Pool",
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://192.168.1.61:9443/nifi-api/controller-services/73bb4350-0187-1000-0000-00001e61437f?version=1&disconnectedNodeAcknowledged=false",
+					"protocol": "https",
+					"host": [
+						"192",
+						"168",
+						"1",
+						"61"
+					],
+					"port": "9443",
+					"path": [
+						"nifi-api",
+						"controller-services",
+						"73bb4350-0187-1000-0000-00001e61437f"
+					],
+					"query": [
+						{
+							"key": "version",
+							"value": "1"
+						},
+						{
+							"key": "disconnectedNodeAcknowledged",
+							"value": "false"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Delete DBCP Lookup",
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://192.168.1.61:9443/nifi-api/controller-services/73bb4350-0187-1000-0000-00001e61437f?version=1&disconnectedNodeAcknowledged=false",
+					"protocol": "https",
+					"host": [
+						"192",
+						"168",
+						"1",
+						"61"
+					],
+					"port": "9443",
+					"path": [
+						"nifi-api",
+						"controller-services",
+						"73bb4350-0187-1000-0000-00001e61437f"
+					],
+					"query": [
+						{
+							"key": "version",
+							"value": "1"
+						},
+						{
+							"key": "disconnectedNodeAcknowledged",
+							"value": "false"
+						}
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

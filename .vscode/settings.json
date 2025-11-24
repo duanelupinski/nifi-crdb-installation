@@ -1,0 +1,14 @@
+{
+  "yaml.schemas": {
+    "https://raw.githubusercontent.com/canonical/cloud-init/main/cloudinit/config/schemas/versions.schema.cloud-config.json": [
+      "scripts/terraform/**/cloud-init/*.yml",
+      "scripts/terraform/**/cloud-init/*.yaml"
+    ],
+    "kubernetes": [
+      "k8s/**/*.yml",
+      "k8s/**/*.yaml",
+      "manifests/**/*.yml",
+      "manifests/**/*.yaml"
+    ]
+  }
+}

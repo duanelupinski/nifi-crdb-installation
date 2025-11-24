@@ -239,6 +239,11 @@ ni::auth::grant_nodes() {
 
   ni::auth::grant "$admin" read  "counters"              # access counters (view)
   ni::auth::grant "$admin" write "counters"              # access counters (modify)
+  
+  # Restricted Components: allow referencing external resources (e.g., driver JARs)
+  for dn in "${NODES[@]}"; do
+    ni::auth::grant "$dn" write "restricted-components"
+  done
 
   # Root process group (top-level canvas) policies
   local controller="${NIFI_NODES[0]}"               # query any node
@@ -272,6 +277,7 @@ ni::auth::grant_nodes() {
     ni::auth::grant "$dn" write "${RES_COMPONENT}"
     ni::auth::grant "$dn" read  "${RES_DATA}"
     ni::auth::grant "$dn" write "${RES_DATA}"
+    ni::auth::grant "$dn" write "${RES_OPERATION}"
   done
 }
 

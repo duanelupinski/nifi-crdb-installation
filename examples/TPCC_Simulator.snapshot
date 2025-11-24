@@ -1,0 +1,760 @@
+{
+  "header" : {
+    "dataModelVersion" : "3"
+  },
+  "content" : {
+    "flowSnapshot" : {
+      "externalControllerServices" : { },
+      "flowContents" : {
+        "comments" : "",
+        "componentType" : "PROCESS_GROUP",
+        "connections" : [ {
+          "backPressureDataSizeThreshold" : "1 GB",
+          "backPressureObjectThreshold" : 10000,
+          "bends" : [ ],
+          "componentType" : "CONNECTION",
+          "destination" : {
+            "comments" : "",
+            "groupId" : "44f474ee-cab1-30d5-87ba-27332624e423",
+            "id" : "e97a053f-a246-3e95-b80a-e5807076fd49",
+            "instanceIdentifier" : "1267f98c-4dcf-3a37-83a1-8240d4a81195",
+            "name" : "initializeInfrastructure",
+            "type" : "INPUT_PORT"
+          },
+          "flowFileExpiration" : "0 sec",
+          "groupIdentifier" : "423720e3-1e4a-3a44-8dc8-a705b07796ac",
+          "identifier" : "ce91609c-761c-358b-b13d-ee623786d8c6",
+          "instanceIdentifier" : "0dab9dc7-abb5-3c33-b512-84d7958d1ee2",
+          "labelIndex" : 1,
+          "loadBalanceCompression" : "DO_NOT_COMPRESS",
+          "loadBalanceStrategy" : "DO_NOT_LOAD_BALANCE",
+          "name" : "",
+          "partitioningAttribute" : "",
+          "prioritizers" : [ ],
+          "selectedRelationships" : [ "terraform" ],
+          "source" : {
+            "comments" : "",
+            "groupId" : "423720e3-1e4a-3a44-8dc8-a705b07796ac",
+            "id" : "ef60b613-ff2c-3930-a090-3bcf4e2d9e02",
+            "instanceIdentifier" : "e4fe057c-78c3-34ef-a52e-540cfefba0d3",
+            "name" : "RouteOnAttribute Determine TPCC Stage",
+            "type" : "PROCESSOR"
+          },
+          "zIndex" : 0
+        }, {
+          "backPressureDataSizeThreshold" : "1 GB",
+          "backPressureObjectThreshold" : 10000,
+          "bends" : [ ],
+          "componentType" : "CONNECTION",
+          "destination" : {
+            "groupId" : "65eba5e7-1047-3ebc-91d3-51b3fba58043",
+            "id" : "a2a3729d-b984-3e83-b85a-e5a5fcd0e6ab",
+            "instanceIdentifier" : "8f26e4e2-7b7c-3379-a62f-0ba571fcef4d",
+            "name" : "startTest",
+            "type" : "INPUT_PORT"
+          },
+          "flowFileExpiration" : "0 sec",
+          "groupIdentifier" : "423720e3-1e4a-3a44-8dc8-a705b07796ac",
+          "identifier" : "7eb7695a-1c1d-34dd-9381-1f0dabcf88d9",
+          "instanceIdentifier" : "8824751d-0f41-3dd7-bfc0-8eb7dc60ede6",
+          "labelIndex" : 0,
+          "loadBalanceCompression" : "DO_NOT_COMPRESS",
+          "loadBalanceStrategy" : "DO_NOT_LOAD_BALANCE",
+          "name" : "",
+          "partitioningAttribute" : "",
+          "prioritizers" : [ ],
+          "selectedRelationships" : [ "" ],
+          "source" : {
+            "groupId" : "b7e867b7-1223-3212-841c-c2bda8919587",
+            "id" : "b8fcfa0d-bffc-34a0-94d7-38476e4317d7",
+            "instanceIdentifier" : "7535c03e-2e0f-391e-bf32-6dbe800b0de0",
+            "name" : "tablesInitialized",
+            "type" : "OUTPUT_PORT"
+          },
+          "zIndex" : 0
+        }, {
+          "backPressureDataSizeThreshold" : "1 GB",
+          "backPressureObjectThreshold" : 10000,
+          "bends" : [ ],
+          "componentType" : "CONNECTION",
+          "destination" : {
+            "comments" : "",
+            "groupId" : "423720e3-1e4a-3a44-8dc8-a705b07796ac",
+            "id" : "e67ed7e2-19ad-358a-9026-a2f8d6fe5335",
+            "instanceIdentifier" : "b1e16c1e-73f2-3efd-94e0-c0bcea4b9363",
+            "name" : "RouteOnAttribute Determine TPCC Status",
+            "type" : "PROCESSOR"
+          },
+          "flowFileExpiration" : "0 sec",
+          "groupIdentifier" : "423720e3-1e4a-3a44-8dc8-a705b07796ac",
+          "identifier" : "19d5b413-ba00-379d-a187-f0a70c99a6b0",
+          "instanceIdentifier" : "0cf75710-2459-3ad4-9ef1-04efcdb85464",
+          "labelIndex" : 1,
+          "loadBalanceCompression" : "DO_NOT_COMPRESS",
+          "loadBalanceStrategy" : "DO_NOT_LOAD_BALANCE",
+          "name" : "",
+          "partitioningAttribute" : "",
+          "prioritizers" : [ ],
+          "selectedRelationships" : [ "" ],
+          "source" : {
+            "comments" : "",
+            "groupId" : "7464cfa4-a924-32d5-8fc5-454b245fe801",
+            "id" : "c0a86117-dcfb-3d56-af7b-b9f653c64458",
+            "instanceIdentifier" : "e0b89cb0-b0ad-3f50-baa6-68c580af5490",
+            "name" : "metricsDownloaded",
+            "type" : "OUTPUT_PORT"
+          },
+          "zIndex" : 0
+        }, {
+          "backPressureDataSizeThreshold" : "1 GB",
+          "backPressureObjectThreshold" : 10000,
+          "bends" : [ {
+            "x" : -544.0,
+            "y" : 936.0
+          }, {
+            "x" : -544.0,
+            "y" : 88.0
+          } ],
+          "componentType" : "CONNECTION",
+          "destination" : {
+            "groupId" : "1f3a3df3-bcd2-3bd6-aa51-88590d2e6453",
+            "id" : "2112b64b-b46a-3c41-b114-1541c5af3c9c",
+            "instanceIdentifier" : "a57f4463-018d-1000-0000-000045454617",
+            "name" : "startNextTest",
+            "type" : "INPUT_PORT"
+          },
+          "flowFileExpiration" : "0 sec",
+          "groupIdentifier" : "423720e3-1e4a-3a44-8dc8-a705b07796ac",
+          "identifier" : "d9f7541f-4433-378a-97dd-8b6a1c26685b",
+          "instanceIdentifier" : "2c9330aa-b752-111b-0000-00003914a6d0",
+          "labelIndex" : 1,
+          "loadBalanceCompression" : "DO_NOT_COMPRESS",
+          "loadBalanceStrategy" : "DO_NOT_LOAD_BALANCE",
+          "name" : "",
+          "partitioningAttribute" : "",
+          "prioritizers" : [ ],
+          "selectedRelationships" : [ "" ],
+          "source" : {
+            "groupId" : "22df04da-405e-316d-b1a8-8a5d6b5d124c",
+            "id" : "efa198d6-d01c-3a4f-909a-14b7ff7a82dd",
+            "instanceIdentifier" : "2c93308f-b752-111b-0000-00005dad3576",
+            "name" : "testComplete",
+            "type" : "OUTPUT_PORT"
+          },
+          "zIndex" : 0
+        }, {
+          "backPressureDataSizeThreshold" : "1 GB",
+          "backPressureObjectThreshold" : 10000,
+          "bends" : [ ],
+          "componentType" : "CONNECTION",
+          "destination" : {
+            "comments" : "",
+            "groupId" : "22df04da-405e-316d-b1a8-8a5d6b5d124c",
+            "id" : "17f56367-955a-3681-b501-b9d2d4104997",
+            "instanceIdentifier" : "eb4ae7c7-d736-37f9-89ca-587410a71960",
+            "name" : "teardownServers",
+            "type" : "INPUT_PORT"
+          },
+          "flowFileExpiration" : "0 sec",
+          "groupIdentifier" : "423720e3-1e4a-3a44-8dc8-a705b07796ac",
+          "identifier" : "6de93386-18d8-31c9-a622-8acd1da6e20a",
+          "instanceIdentifier" : "4118d82e-7d07-3e4e-846d-ce2c24e08396",
+          "labelIndex" : 1,
+          "loadBalanceCompression" : "DO_NOT_COMPRESS",
+          "loadBalanceStrategy" : "DO_NOT_LOAD_BALANCE",
+          "name" : "",
+          "partitioningAttribute" : "",
+          "prioritizers" : [ ],
+          "selectedRelationships" : [ "terraform" ],
+          "source" : {
+            "comments" : "",
+            "groupId" : "423720e3-1e4a-3a44-8dc8-a705b07796ac",
+            "id" : "e67ed7e2-19ad-358a-9026-a2f8d6fe5335",
+            "instanceIdentifier" : "b1e16c1e-73f2-3efd-94e0-c0bcea4b9363",
+            "name" : "RouteOnAttribute Determine TPCC Status",
+            "type" : "PROCESSOR"
+          },
+          "zIndex" : 0
+        }, {
+          "backPressureDataSizeThreshold" : "1 GB",
+          "backPressureObjectThreshold" : 10000,
+          "bends" : [ ],
+          "componentType" : "CONNECTION",
+          "destination" : {
+            "comments" : "",
+            "groupId" : "423720e3-1e4a-3a44-8dc8-a705b07796ac",
+            "id" : "ef60b613-ff2c-3930-a090-3bcf4e2d9e02",
+            "instanceIdentifier" : "e4fe057c-78c3-34ef-a52e-540cfefba0d3",
+            "name" : "RouteOnAttribute Determine TPCC Stage",
+            "type" : "PROCESSOR"
+          },
+          "flowFileExpiration" : "0 sec",
+          "groupIdentifier" : "423720e3-1e4a-3a44-8dc8-a705b07796ac",
+          "identifier" : "d7eda9b5-2023-3ff1-b208-84a4d9a5bc1e",
+          "instanceIdentifier" : "f28376b9-2cc5-3bb5-bea4-9d0b97d47c6d",
+          "labelIndex" : 1,
+          "loadBalanceCompression" : "DO_NOT_COMPRESS",
+          "loadBalanceStrategy" : "DO_NOT_LOAD_BALANCE",
+          "name" : "",
+          "partitioningAttribute" : "",
+          "prioritizers" : [ ],
+          "selectedRelationships" : [ "" ],
+          "source" : {
+            "comments" : "",
+            "groupId" : "1f3a3df3-bcd2-3bd6-aa51-88590d2e6453",
+            "id" : "01f469e5-0f41-33b9-b801-3eccf4058728",
+            "instanceIdentifier" : "117c2af4-4b8d-3193-9777-686f6fbbf93a",
+            "name" : "tpccInitialized",
+            "type" : "OUTPUT_PORT"
+          },
+          "zIndex" : 0
+        }, {
+          "backPressureDataSizeThreshold" : "1 GB",
+          "backPressureObjectThreshold" : 10000,
+          "bends" : [ ],
+          "componentType" : "CONNECTION",
+          "destination" : {
+            "comments" : "",
+            "groupId" : "423720e3-1e4a-3a44-8dc8-a705b07796ac",
+            "id" : "e67ed7e2-19ad-358a-9026-a2f8d6fe5335",
+            "instanceIdentifier" : "b1e16c1e-73f2-3efd-94e0-c0bcea4b9363",
+            "name" : "RouteOnAttribute Determine TPCC Status",
+            "type" : "PROCESSOR"
+          },
+          "flowFileExpiration" : "0 sec",
+          "groupIdentifier" : "423720e3-1e4a-3a44-8dc8-a705b07796ac",
+          "identifier" : "67878922-a46d-3989-b3d4-eba6a6cd7678",
+          "instanceIdentifier" : "f230792f-948e-1dd8-0000-0000402e8375",
+          "labelIndex" : 1,
+          "loadBalanceCompression" : "DO_NOT_COMPRESS",
+          "loadBalanceStrategy" : "DO_NOT_LOAD_BALANCE",
+          "name" : "",
+          "partitioningAttribute" : "",
+          "prioritizers" : [ ],
+          "selectedRelationships" : [ "" ],
+          "source" : {
+            "groupId" : "b7e867b7-1223-3212-841c-c2bda8919587",
+            "id" : "9ebe20ce-1d59-3bb2-9d1e-c88e3ace7f44",
+            "instanceIdentifier" : "f2307919-948e-1dd8-ffff-ffffd566071f",
+            "name" : "bypass",
+            "type" : "OUTPUT_PORT"
+          },
+          "zIndex" : 0
+        }, {
+          "backPressureDataSizeThreshold" : "1 GB",
+          "backPressureObjectThreshold" : 10000,
+          "bends" : [ ],
+          "componentType" : "CONNECTION",
+          "destination" : {
+            "groupId" : "b7e867b7-1223-3212-841c-c2bda8919587",
+            "id" : "63a3f695-f1f0-302c-b226-4a093caa8a57",
+            "instanceIdentifier" : "3ab9204e-c77e-310e-bfb8-6146a708ba74",
+            "name" : "createTables",
+            "type" : "INPUT_PORT"
+          },
+          "flowFileExpiration" : "0 sec",
+          "groupIdentifier" : "423720e3-1e4a-3a44-8dc8-a705b07796ac",
+          "identifier" : "4ef6191c-e1b4-3099-86cc-1ad02d9db9f3",
+          "instanceIdentifier" : "5baa6081-107f-3bee-bc9f-a54583d31d97",
+          "labelIndex" : 1,
+          "loadBalanceCompression" : "DO_NOT_COMPRESS",
+          "loadBalanceStrategy" : "DO_NOT_LOAD_BALANCE",
+          "name" : "",
+          "partitioningAttribute" : "",
+          "prioritizers" : [ ],
+          "selectedRelationships" : [ "" ],
+          "source" : {
+            "comments" : "",
+            "groupId" : "44f474ee-cab1-30d5-87ba-27332624e423",
+            "id" : "c1f63d83-6a0d-3eaa-af79-f79c45756621",
+            "instanceIdentifier" : "d9cf26a7-866b-3a8b-ba3b-78940617151d",
+            "name" : "infrastructureComplete",
+            "type" : "OUTPUT_PORT"
+          },
+          "zIndex" : 0
+        }, {
+          "backPressureDataSizeThreshold" : "1 GB",
+          "backPressureObjectThreshold" : 10000,
+          "bends" : [ ],
+          "componentType" : "CONNECTION",
+          "destination" : {
+            "comments" : "",
+            "groupId" : "7464cfa4-a924-32d5-8fc5-454b245fe801",
+            "id" : "8ac973e0-7db6-3f16-b8a6-939fe902dedb",
+            "instanceIdentifier" : "a9f75e48-e727-3897-a533-3f5ddaa4bede",
+            "name" : "extractMetrics",
+            "type" : "INPUT_PORT"
+          },
+          "flowFileExpiration" : "0 sec",
+          "groupIdentifier" : "423720e3-1e4a-3a44-8dc8-a705b07796ac",
+          "identifier" : "cb62a3c3-f0b9-3b45-9cdf-1acaffdc5813",
+          "instanceIdentifier" : "97f22159-a662-3c03-9933-d6d5660852d9",
+          "labelIndex" : 0,
+          "loadBalanceCompression" : "DO_NOT_COMPRESS",
+          "loadBalanceStrategy" : "DO_NOT_LOAD_BALANCE",
+          "name" : "",
+          "partitioningAttribute" : "",
+          "prioritizers" : [ ],
+          "selectedRelationships" : [ "" ],
+          "source" : {
+            "groupId" : "65eba5e7-1047-3ebc-91d3-51b3fba58043",
+            "id" : "b9f8df31-d765-3ba4-a08f-e21017da7235",
+            "instanceIdentifier" : "4def8478-d9a2-36af-aeb7-0ec15ec6d0e8",
+            "name" : "testComplete",
+            "type" : "OUTPUT_PORT"
+          },
+          "zIndex" : 39
+        }, {
+          "backPressureDataSizeThreshold" : "1 GB",
+          "backPressureObjectThreshold" : 10000,
+          "bends" : [ ],
+          "componentType" : "CONNECTION",
+          "destination" : {
+            "groupId" : "b7e867b7-1223-3212-841c-c2bda8919587",
+            "id" : "63a3f695-f1f0-302c-b226-4a093caa8a57",
+            "instanceIdentifier" : "3ab9204e-c77e-310e-bfb8-6146a708ba74",
+            "name" : "createTables",
+            "type" : "INPUT_PORT"
+          },
+          "flowFileExpiration" : "0 sec",
+          "groupIdentifier" : "423720e3-1e4a-3a44-8dc8-a705b07796ac",
+          "identifier" : "48f1c057-6a36-3e22-bfae-3a926639d533",
+          "instanceIdentifier" : "72c5ce83-86a8-3f09-9109-11fee082a12d",
+          "labelIndex" : 0,
+          "loadBalanceCompression" : "DO_NOT_COMPRESS",
+          "loadBalanceStrategy" : "DO_NOT_LOAD_BALANCE",
+          "name" : "",
+          "partitioningAttribute" : "",
+          "prioritizers" : [ ],
+          "selectedRelationships" : [ "unmatched" ],
+          "source" : {
+            "comments" : "",
+            "groupId" : "423720e3-1e4a-3a44-8dc8-a705b07796ac",
+            "id" : "ef60b613-ff2c-3930-a090-3bcf4e2d9e02",
+            "instanceIdentifier" : "e4fe057c-78c3-34ef-a52e-540cfefba0d3",
+            "name" : "RouteOnAttribute Determine TPCC Stage",
+            "type" : "PROCESSOR"
+          },
+          "zIndex" : 0
+        } ],
+        "controllerServices" : [ {
+          "bulletinLevel" : "WARN",
+          "bundle" : {
+            "artifact" : "nifi-ssl-context-service-nar",
+            "group" : "org.apache.nifi",
+            "version" : "1.22.0"
+          },
+          "comments" : "",
+          "componentType" : "CONTROLLER_SERVICE",
+          "controllerServiceApis" : [ {
+            "bundle" : {
+              "artifact" : "nifi-standard-services-api-nar",
+              "group" : "org.apache.nifi",
+              "version" : "1.22.0"
+            },
+            "type" : "org.apache.nifi.ssl.SSLContextService"
+          }, {
+            "bundle" : {
+              "artifact" : "nifi-standard-services-api-nar",
+              "group" : "org.apache.nifi",
+              "version" : "1.22.0"
+            },
+            "type" : "org.apache.nifi.ssl.RestrictedSSLContextService"
+          } ],
+          "groupIdentifier" : "423720e3-1e4a-3a44-8dc8-a705b07796ac",
+          "identifier" : "a432640c-f194-3a26-bfeb-79701d748cdd",
+          "instanceIdentifier" : "95fbcea0-648a-36b2-9993-14e1129e582e",
+          "name" : "StandardRestrictedSSLContextService TPCC",
+          "properties" : {
+            "Truststore Type" : "JKS",
+            "SSL Protocol" : "TLS",
+            "Keystore Type" : "JKS",
+            "Truststore Filename" : "/home/nifi/nifi-1.22.0/conf/truststore.jks",
+            "Keystore Filename" : "/home/nifi/nifi-1.22.0/conf/keystore.jks"
+          },
+          "propertyDescriptors" : {
+            "Truststore Type" : {
+              "displayName" : "Truststore Type",
+              "identifiesControllerService" : false,
+              "name" : "Truststore Type",
+              "sensitive" : false
+            },
+            "SSL Protocol" : {
+              "displayName" : "TLS Protocol",
+              "identifiesControllerService" : false,
+              "name" : "SSL Protocol",
+              "sensitive" : false
+            },
+            "Keystore Type" : {
+              "displayName" : "Keystore Type",
+              "identifiesControllerService" : false,
+              "name" : "Keystore Type",
+              "sensitive" : false
+            },
+            "Truststore Filename" : {
+              "displayName" : "Truststore Filename",
+              "identifiesControllerService" : false,
+              "name" : "Truststore Filename",
+              "resourceDefinition" : {
+                "cardinality" : "SINGLE",
+                "resourceTypes" : [ "FILE" ]
+              },
+              "sensitive" : false
+            },
+            "Keystore Password" : {
+              "displayName" : "Keystore Password",
+              "identifiesControllerService" : false,
+              "name" : "Keystore Password",
+              "sensitive" : true
+            },
+            "key-password" : {
+              "displayName" : "Key Password",
+              "identifiesControllerService" : false,
+              "name" : "key-password",
+              "sensitive" : true
+            },
+            "Truststore Password" : {
+              "displayName" : "Truststore Password",
+              "identifiesControllerService" : false,
+              "name" : "Truststore Password",
+              "sensitive" : true
+            },
+            "Keystore Filename" : {
+              "displayName" : "Keystore Filename",
+              "identifiesControllerService" : false,
+              "name" : "Keystore Filename",
+              "resourceDefinition" : {
+                "cardinality" : "SINGLE",
+                "resourceTypes" : [ "FILE" ]
+              },
+              "sensitive" : false
+            }
+          },
+          "scheduledState" : "DISABLED",
+          "type" : "org.apache.nifi.ssl.StandardRestrictedSSLContextService"
+        } ],
+        "defaultBackPressureDataSizeThreshold" : "1 GB",
+        "defaultBackPressureObjectThreshold" : 10000,
+        "defaultFlowFileExpiration" : "0 sec",
+        "flowFileConcurrency" : "UNBOUNDED",
+        "flowFileOutboundPolicy" : "STREAM_WHEN_AVAILABLE",
+        "funnels" : [ ],
+        "identifier" : "423720e3-1e4a-3a44-8dc8-a705b07796ac",
+        "inputPorts" : [ ],
+        "instanceIdentifier" : "086689ab-0189-1000-ffff-ffff97e9af0a",
+        "labels" : [ ],
+        "name" : "TPCC Simulator",
+        "outputPorts" : [ ],
+        "position" : {
+          "x" : 1672.0,
+          "y" : 280.0
+        },
+        "processGroups" : [ {
+          "comments" : "",
+          "componentType" : "PROCESS_GROUP",
+          "connections" : [ ],
+          "controllerServices" : [ ],
+          "defaultBackPressureDataSizeThreshold" : "1 GB",
+          "defaultBackPressureObjectThreshold" : 10000,
+          "defaultFlowFileExpiration" : "0 sec",
+          "flowFileConcurrency" : "UNBOUNDED",
+          "flowFileOutboundPolicy" : "STREAM_WHEN_AVAILABLE",
+          "funnels" : [ ],
+          "groupIdentifier" : "423720e3-1e4a-3a44-8dc8-a705b07796ac",
+          "identifier" : "65eba5e7-1047-3ebc-91d3-51b3fba58043",
+          "inputPorts" : [ ],
+          "instanceIdentifier" : "7c158b26-9022-3602-a75f-2727285bd385",
+          "labels" : [ ],
+          "name" : "Execute TPCC Test",
+          "outputPorts" : [ ],
+          "position" : {
+            "x" : 960.0,
+            "y" : 544.0
+          },
+          "processGroups" : [ ],
+          "processors" : [ ],
+          "remoteProcessGroups" : [ ],
+          "variables" : { },
+          "versionedFlowCoordinates" : {
+            "bucketId" : "15bcb886-f680-45f1-b887-75af7d63403d",
+            "flowId" : "d427d5ae-3317-4776-bd53-3276bea4ae2b",
+            "registryUrl" : "https://192.168.1.60:19443/",
+            "storageLocation" : "https://192.168.1.60:19443/nifi-registry-api/buckets/15bcb886-f680-45f1-b887-75af7d63403d/flows/d427d5ae-3317-4776-bd53-3276bea4ae2b/versions/5",
+            "version" : 5
+          }
+        }, {
+          "comments" : "",
+          "componentType" : "PROCESS_GROUP",
+          "connections" : [ ],
+          "controllerServices" : [ ],
+          "defaultBackPressureDataSizeThreshold" : "1 GB",
+          "defaultBackPressureObjectThreshold" : 10000,
+          "defaultFlowFileExpiration" : "0 sec",
+          "flowFileConcurrency" : "UNBOUNDED",
+          "flowFileOutboundPolicy" : "STREAM_WHEN_AVAILABLE",
+          "funnels" : [ ],
+          "groupIdentifier" : "423720e3-1e4a-3a44-8dc8-a705b07796ac",
+          "identifier" : "44f474ee-cab1-30d5-87ba-27332624e423",
+          "inputPorts" : [ ],
+          "instanceIdentifier" : "4f1ad50d-2424-328e-9d8c-5124db80c336",
+          "labels" : [ ],
+          "name" : "Standup TPCC Infrastructure",
+          "outputPorts" : [ ],
+          "position" : {
+            "x" : -432.0,
+            "y" : 544.0
+          },
+          "processGroups" : [ ],
+          "processors" : [ ],
+          "remoteProcessGroups" : [ ],
+          "variables" : { },
+          "versionedFlowCoordinates" : {
+            "bucketId" : "15bcb886-f680-45f1-b887-75af7d63403d",
+            "flowId" : "34605102-b21c-42b6-b890-68af7ff02e15",
+            "registryUrl" : "https://192.168.1.60:19443/",
+            "storageLocation" : "https://192.168.1.60:19443/nifi-registry-api/buckets/15bcb886-f680-45f1-b887-75af7d63403d/flows/34605102-b21c-42b6-b890-68af7ff02e15/versions/7",
+            "version" : 7
+          }
+        }, {
+          "comments" : "",
+          "componentType" : "PROCESS_GROUP",
+          "connections" : [ ],
+          "controllerServices" : [ ],
+          "defaultBackPressureDataSizeThreshold" : "1 GB",
+          "defaultBackPressureObjectThreshold" : 10000,
+          "defaultFlowFileExpiration" : "0 sec",
+          "flowFileConcurrency" : "UNBOUNDED",
+          "flowFileOutboundPolicy" : "STREAM_WHEN_AVAILABLE",
+          "funnels" : [ ],
+          "groupIdentifier" : "423720e3-1e4a-3a44-8dc8-a705b07796ac",
+          "identifier" : "7464cfa4-a924-32d5-8fc5-454b245fe801",
+          "inputPorts" : [ ],
+          "instanceIdentifier" : "1f743aa9-7153-3c3b-aa92-ecbc42c1abc3",
+          "labels" : [ ],
+          "name" : "Extract TPCC Metrics",
+          "outputPorts" : [ ],
+          "position" : {
+            "x" : 960.0,
+            "y" : 848.0
+          },
+          "processGroups" : [ ],
+          "processors" : [ ],
+          "remoteProcessGroups" : [ ],
+          "variables" : { },
+          "versionedFlowCoordinates" : {
+            "bucketId" : "15bcb886-f680-45f1-b887-75af7d63403d",
+            "flowId" : "ddc5fd2f-be23-491d-8189-dfef6b945432",
+            "registryUrl" : "https://192.168.1.60:19443/",
+            "storageLocation" : "https://192.168.1.60:19443/nifi-registry-api/buckets/15bcb886-f680-45f1-b887-75af7d63403d/flows/ddc5fd2f-be23-491d-8189-dfef6b945432/versions/6",
+            "version" : 6
+          }
+        }, {
+          "comments" : "",
+          "componentType" : "PROCESS_GROUP",
+          "connections" : [ ],
+          "controllerServices" : [ ],
+          "defaultBackPressureDataSizeThreshold" : "1 GB",
+          "defaultBackPressureObjectThreshold" : 10000,
+          "defaultFlowFileExpiration" : "0 sec",
+          "flowFileConcurrency" : "UNBOUNDED",
+          "flowFileOutboundPolicy" : "STREAM_WHEN_AVAILABLE",
+          "funnels" : [ ],
+          "groupIdentifier" : "423720e3-1e4a-3a44-8dc8-a705b07796ac",
+          "identifier" : "22df04da-405e-316d-b1a8-8a5d6b5d124c",
+          "inputPorts" : [ ],
+          "instanceIdentifier" : "059b5246-6b88-3939-a82b-fe806c79ec18",
+          "labels" : [ ],
+          "name" : "Teardown TPCC Infrastructure",
+          "outputPorts" : [ ],
+          "position" : {
+            "x" : -432.0,
+            "y" : 848.0
+          },
+          "processGroups" : [ ],
+          "processors" : [ ],
+          "remoteProcessGroups" : [ ],
+          "variables" : { },
+          "versionedFlowCoordinates" : {
+            "bucketId" : "15bcb886-f680-45f1-b887-75af7d63403d",
+            "flowId" : "f90e9401-f1eb-46b0-bbb9-249d05a1eaf3",
+            "registryUrl" : "https://192.168.1.60:19443/",
+            "storageLocation" : "https://192.168.1.60:19443/nifi-registry-api/buckets/15bcb886-f680-45f1-b887-75af7d63403d/flows/f90e9401-f1eb-46b0-bbb9-249d05a1eaf3/versions/7",
+            "version" : 7
+          }
+        }, {
+          "comments" : "",
+          "componentType" : "PROCESS_GROUP",
+          "connections" : [ ],
+          "controllerServices" : [ ],
+          "defaultBackPressureDataSizeThreshold" : "1 GB",
+          "defaultBackPressureObjectThreshold" : 10000,
+          "defaultFlowFileExpiration" : "0 sec",
+          "flowFileConcurrency" : "UNBOUNDED",
+          "flowFileOutboundPolicy" : "STREAM_WHEN_AVAILABLE",
+          "funnels" : [ ],
+          "groupIdentifier" : "423720e3-1e4a-3a44-8dc8-a705b07796ac",
+          "identifier" : "b7e867b7-1223-3212-841c-c2bda8919587",
+          "inputPorts" : [ ],
+          "instanceIdentifier" : "3e2a0bd0-a126-3559-96cb-ea8eae17b299",
+          "labels" : [ ],
+          "name" : "Initialize TPCC Tables",
+          "outputPorts" : [ ],
+          "position" : {
+            "x" : 264.0,
+            "y" : 544.0
+          },
+          "processGroups" : [ ],
+          "processors" : [ ],
+          "remoteProcessGroups" : [ ],
+          "variables" : { },
+          "versionedFlowCoordinates" : {
+            "bucketId" : "15bcb886-f680-45f1-b887-75af7d63403d",
+            "flowId" : "742c32dc-2b33-4362-92d7-fe3033f65282",
+            "registryUrl" : "https://192.168.1.60:19443/",
+            "storageLocation" : "https://192.168.1.60:19443/nifi-registry-api/buckets/15bcb886-f680-45f1-b887-75af7d63403d/flows/742c32dc-2b33-4362-92d7-fe3033f65282/versions/5",
+            "version" : 5
+          }
+        }, {
+          "comments" : "",
+          "componentType" : "PROCESS_GROUP",
+          "connections" : [ ],
+          "controllerServices" : [ ],
+          "defaultBackPressureDataSizeThreshold" : "1 GB",
+          "defaultBackPressureObjectThreshold" : 10000,
+          "defaultFlowFileExpiration" : "0 sec",
+          "flowFileConcurrency" : "UNBOUNDED",
+          "flowFileOutboundPolicy" : "STREAM_WHEN_AVAILABLE",
+          "funnels" : [ ],
+          "groupIdentifier" : "423720e3-1e4a-3a44-8dc8-a705b07796ac",
+          "identifier" : "1f3a3df3-bcd2-3bd6-aa51-88590d2e6453",
+          "inputPorts" : [ ],
+          "instanceIdentifier" : "764977a4-d3f2-33d3-9c8c-506a5623c07d",
+          "labels" : [ ],
+          "name" : "Initialize TPCC Request",
+          "outputPorts" : [ ],
+          "position" : {
+            "x" : -88.0,
+            "y" : 0.0
+          },
+          "processGroups" : [ ],
+          "processors" : [ ],
+          "remoteProcessGroups" : [ ],
+          "variables" : { },
+          "versionedFlowCoordinates" : {
+            "bucketId" : "15bcb886-f680-45f1-b887-75af7d63403d",
+            "flowId" : "3d54f100-c99f-43a9-ab07-120cb68dd835",
+            "registryUrl" : "https://192.168.1.60:19443/",
+            "storageLocation" : "https://192.168.1.60:19443/nifi-registry-api/buckets/15bcb886-f680-45f1-b887-75af7d63403d/flows/3d54f100-c99f-43a9-ab07-120cb68dd835/versions/7",
+            "version" : 7
+          }
+        } ],
+        "processors" : [ {
+          "autoTerminatedRelationships" : [ ],
+          "backoffMechanism" : "PENALIZE_FLOWFILE",
+          "bulletinLevel" : "WARN",
+          "bundle" : {
+            "artifact" : "nifi-standard-nar",
+            "group" : "org.apache.nifi",
+            "version" : "1.22.0"
+          },
+          "comments" : "",
+          "componentType" : "PROCESSOR",
+          "concurrentlySchedulableTaskCount" : 1,
+          "executionNode" : "ALL",
+          "groupIdentifier" : "423720e3-1e4a-3a44-8dc8-a705b07796ac",
+          "identifier" : "ef60b613-ff2c-3930-a090-3bcf4e2d9e02",
+          "instanceIdentifier" : "e4fe057c-78c3-34ef-a52e-540cfefba0d3",
+          "maxBackoffPeriod" : "10 mins",
+          "name" : "RouteOnAttribute Determine TPCC Stage",
+          "penaltyDuration" : "30 sec",
+          "position" : {
+            "x" : -72.0,
+            "y" : 296.0
+          },
+          "properties" : {
+            "Routing Strategy" : "Route to Property name",
+            "terraform" : "${terraformApply:equals(\"true\")}"
+          },
+          "propertyDescriptors" : {
+            "Routing Strategy" : {
+              "displayName" : "Routing Strategy",
+              "identifiesControllerService" : false,
+              "name" : "Routing Strategy",
+              "sensitive" : false
+            },
+            "terraform" : {
+              "displayName" : "terraform",
+              "identifiesControllerService" : false,
+              "name" : "terraform",
+              "sensitive" : false
+            }
+          },
+          "retriedRelationships" : [ ],
+          "retryCount" : 10,
+          "runDurationMillis" : 25,
+          "scheduledState" : "ENABLED",
+          "schedulingPeriod" : "0 sec",
+          "schedulingStrategy" : "TIMER_DRIVEN",
+          "style" : { },
+          "type" : "org.apache.nifi.processors.standard.RouteOnAttribute",
+          "yieldDuration" : "1 sec"
+        }, {
+          "autoTerminatedRelationships" : [ "unmatched" ],
+          "backoffMechanism" : "PENALIZE_FLOWFILE",
+          "bulletinLevel" : "WARN",
+          "bundle" : {
+            "artifact" : "nifi-standard-nar",
+            "group" : "org.apache.nifi",
+            "version" : "1.22.0"
+          },
+          "comments" : "",
+          "componentType" : "PROCESSOR",
+          "concurrentlySchedulableTaskCount" : 1,
+          "executionNode" : "ALL",
+          "groupIdentifier" : "423720e3-1e4a-3a44-8dc8-a705b07796ac",
+          "identifier" : "e67ed7e2-19ad-358a-9026-a2f8d6fe5335",
+          "instanceIdentifier" : "b1e16c1e-73f2-3efd-94e0-c0bcea4b9363",
+          "maxBackoffPeriod" : "10 mins",
+          "name" : "RouteOnAttribute Determine TPCC Status",
+          "penaltyDuration" : "30 sec",
+          "position" : {
+            "x" : 280.0,
+            "y" : 872.0
+          },
+          "properties" : {
+            "Routing Strategy" : "Route to Property name",
+            "terraform" : "${terraformDestroy:equals(\"true\")}"
+          },
+          "propertyDescriptors" : {
+            "Routing Strategy" : {
+              "displayName" : "Routing Strategy",
+              "identifiesControllerService" : false,
+              "name" : "Routing Strategy",
+              "sensitive" : false
+            },
+            "terraform" : {
+              "displayName" : "terraform",
+              "identifiesControllerService" : false,
+              "name" : "terraform",
+              "sensitive" : false
+            }
+          },
+          "retriedRelationships" : [ ],
+          "retryCount" : 10,
+          "runDurationMillis" : 25,
+          "scheduledState" : "ENABLED",
+          "schedulingPeriod" : "0 sec",
+          "schedulingStrategy" : "TIMER_DRIVEN",
+          "style" : { },
+          "type" : "org.apache.nifi.processors.standard.RouteOnAttribute",
+          "yieldDuration" : "1 sec"
+        } ],
+        "remoteProcessGroups" : [ ],
+        "variables" : { }
+      },
+      "flowEncodingVersion" : "1.0",
+      "parameterContexts" : { },
+      "parameterProviders" : { }
+    }
+  }
+}

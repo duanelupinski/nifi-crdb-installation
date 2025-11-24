@@ -214,6 +214,7 @@ vms/
 *-join-command
 *.log
 .terraform*
+.rendered*
 **/tfplan.out
 *.tfstate*
 *.lock

@@ -1,0 +1,961 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/schemas/migrate.json",
+  "type": "object",
+  "required": [
+    "migrationId",
+    "sourceMongo",
+    "targetCrdb",
+    "collection"
+  ],
+  "properties": {
+    "migrationId": {
+      "type": "string",
+      "description": "Stable identifier for a single migration “run context.” Use it to correlate logs, metrics, retries, and artifacts across services. Must be non-empty; recommended to be globally unique (e.g., UUID or human-readable slug + timestamp).",
+      "minLength": 1
+    },
+    "dryRun": {
+      "type": "boolean",
+      "description": "Safety switch. When true, processors should validate inputs, resolve dependencies, and produce plans (and optionally side-effect-free previews), but must not mutate external systems or persist target-state changes.",
+      "default": false
+    },
+    "priority": {
+      "type": "string",
+      "description": "Scheduling hint for queues/executors. Typical uses: pick a priority lane, adjust concurrency tokens, or bump backoff thresholds. Must not change mid-run; treat it as a queue-time attribute.",
+      "enum": [
+        "low",
+        "normal",
+        "high"
+      ],
+      "default": "normal"
+    },
+    "nifi": {
+      "type": "object",
+      "description": "Information about he running NiFi cluster.",
+      "properties": {
+        "apiUrl": {
+          "type": "string",
+          "description": "Endpoint URL for NiFi host that can server API requests for this cluster.",
+          "format": "uri",
+          "default": "https://nifi-node-01:9443/nifi-api"
+        },
+        "processGroupName": {
+          "type": "string",
+          "description": "name of the main process group used to orchestrate the migration pipeline",
+          "default": "MongoDB to CRDB"
+        },
+        "dbcpLookupName": {
+          "type": "string",
+          "description": "name of the DBCP lookup controller service that stores database connection details for a migration",
+          "default": "DBCPConnectionPoolLookup"
+        }
+      },
+      "additionalProperties": false
+    },
+    "orchestrator": {
+      "type": "object",
+      "description": "Metadata used by the controller/runner layer (not business logic).",
+      "properties": {
+        "runOwner": {
+          "type": "string",
+          "description": "Human or service principal responsible for the run. Use in audit trails and for “who to page” on failure."
+        },
+        "tags": {
+          "type": "array",
+          "description": "Lightweight labels for search/routing/analytics (e.g., [\"mongo→crdb\",\"phase:bulk\",\"env:staging\"]). Prefer kebab-case or key:value patterns; avoid secrets.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "notifyWebhook": {
+          "type": "string",
+          "description": "Optional callback endpoint to receive status events (started/progress/succeeded/failed). Expect authenticated POSTs with a signed payload including migrationId, status, and a monotonic sequence.",
+          "format": "uri"
+        }
+      },
+      "additionalProperties": false
+    },
+    "sourceMongo": {
+      "type": "object",
+      "required": [
+        "connectionUri",
+        "database"
+      ],
+      "properties": {
+        "connectionUri": {
+          "type": "string",
+          "description": "The full MongoDB connection string (SRV or standard). This is the single source of truth for hosts/ports/topology, auth mechanism, replicaSet name, timeouts, retryReads/writes, etc.",
+          "minLength": 1
+        },
+        "database": {
+          "type": "string",
+          "description": "The logical DB we’re migrating from (namespace for initial snapshot and change streams).",
+          "minLength": 1
+        },
+        "auth": {
+          "type": "object",
+          "properties": {
+            "username": {
+              "type": "string",
+              "description": "Principal to use if not in URI."
+            },
+            "passwordSecretRef": {
+              "type": "string",
+              "description": "Secret manager reference (K8s secret path, Vault path, etc.)."
+            },
+            "authenticationDatabase": {
+              "type": "string",
+              "description": "Database where the user was created, most admin users will be in admin)."
+            }
+          },
+          "additionalProperties": false
+        },
+        "tls": {
+          "type": "object",
+          "properties": {
+            "verifyPeer": {
+              "type": "boolean",
+              "description": "TBI: Whether to verify server certs. Should be true in prod.",
+              "default": true
+            },
+            "caCertSecretRef": {
+              "type": "string",
+              "description": "TBI: Secret ref for custom CA bundle if using private PKI."
+            }
+          },
+          "additionalProperties": false
+        },
+        "readConcern": {
+          "type": "string",
+          "description": "TBI: Controls consistency level of reads (local, majority, linearizable, available, snapshot)."
+        },
+        "writeConcern": {
+          "type": "string",
+          "description": "TBI: Acks for writes (majority, w:1, w:0, w:N, often with j/wtimeout in URI)."
+        },
+        "maxDocsPerBatch": {
+          "type": "integer",
+          "description": "TBI: Application-level chunk size for processing/commit cycles (e.g., read → transform → stage → commit), primary backpressure & memory control for the pipeline.",
+          "minimum": 1
+        },
+        "cursorBatchSize": {
+          "type": "integer",
+          "description": "TBI: Hints Mongo how many docs to return per getMore. Smaller = more round trips; larger = fewer calls but bigger bursts.",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "targetCrdb": {
+      "type": "object",
+      "title": "Target CockroachDB Configuration (v1)",
+      "required": [
+        "hostname"
+      ],
+      "properties": {
+        "hostname": {
+          "type": "string",
+          "description": "Name of the host used to access your CockroachDB cluster.",
+          "minLength": 1
+        },
+        "port": {
+          "type": "string",
+          "description": "TCP port for SQL connections.",
+          "default": "26257"
+        },
+        "auth": {
+          "type": "object",
+          "description": "Authentication for the database. Use either password auth or client certs.",
+          "properties": {
+            "username": {
+              "type": "string",
+              "description": "Database role to connect as. Required if not using client certs."
+            },
+            "passwordSecretRef": {
+              "type": "string",
+              "description": "Secret reference for the password if using password auth (e.g., k8s secret key or Vault path)."
+            }
+          },
+          "additionalProperties": false
+        },
+        "tls": {
+          "type": "object",
+          "description": "TLS options. Enable server verification and (optionally) client cert auth.",
+          "properties": {
+            "sslmode": {
+              "type": "string",
+              "description": "Controls the level of server certificate verification for connections.",
+              "default": "disable"
+            },
+            "caCertLocation": {
+              "type": "string",
+              "description": "Location of the CA bundle for server verification."
+            },
+            "clientCertLocation": {
+              "type": "string",
+              "description": "Location of a PEM-encoded client certificate for mTLS (if used)."
+            },
+            "clientKeyLocation": {
+              "type": "string",
+              "description": "Location of the PEM-encoded private key for the client certificate (if used)."
+            }
+          },
+          "additionalProperties": false
+        },
+        "database": {
+          "type": "string",
+          "description": "Target database name in CockroachDB.",
+          "default": "defaultdb"
+        },
+        "defaultSchema": {
+          "type": "string",
+          "description": "Primary schema for final user-facing tables. Typically 'public'.",
+          "default": "public"
+        },
+        "stagingSchema": {
+          "type": "string",
+          "description": "Durable scratch schema for bulk loads/merges. Preferred over session temp tables when using PgBouncer transaction pooling."
+        },
+        "maxConnections": {
+          "type": "number",
+          "description": "The maximum total number of connections that will be available for the migration."
+        }
+      },
+      "additionalProperties": false
+    },
+    "ddl": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "description": "Controls whether DDL is only produced or also executed against the target.",
+          "enum": [
+            "generate_only",
+            "drop_and_apply",
+            "apply_new_only",
+            "apply_and_update_existing"
+          ],
+          "default": "generate_only"
+        }
+      },
+      "additionalProperties": false
+    },
+    "snapshot": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Controls whether the snapshot migration is run.",
+          "default": false
+        },
+        "parallelCollections": {
+          "type": "integer",
+          "description": "TBI: ",
+          "minimum": 1,
+          "default": 3
+        },
+        "documentLimit": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "TBI: ",
+          "minimum": 1
+        },
+        "avro": {
+          "type": "object",
+          "properties": {
+            "output": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "filesystem",
+                    "s3",
+                    "gcs"
+                  ]
+                },
+                "basePath": {
+                  "type": "string"
+                },
+                "compression": {
+                  "type": "string",
+                  "description": "TBI: ",
+                  "enum": [
+                    "none",
+                    "deflate",
+                    "snappy",
+                    "zstd"
+                  ],
+                  "default": "snappy"
+                }
+              },
+              "required": [
+                "type",
+                "basePath"
+              ],
+              "additionalProperties": false
+            },
+            "recordNaming": {
+              "type": "string",
+              "description": "TBI: ",
+              "enum": [
+                "table_per_record",
+                "single_union"
+              ],
+              "default": "table_per_record"
+            },
+            "logicalTypeHints": {
+              "type": "boolean",
+              "description": "TBI: ",
+              "default": true
+            },
+            "schemaRegistry": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "TBI: "
+            }
+          },
+          "additionalProperties": false
+        },
+        "load": {
+          "type": "object",
+          "properties": {
+            "method": {
+              "type": "string",
+              "enum": [
+                "insert",
+                "upsert",
+                "copy_via_avro"
+              ],
+              "default": "copy_via_avro"
+            },
+            "batchRows": {
+              "type": "integer",
+              "description": "TBI: ",
+              "minimum": 1,
+              "default": 5000
+            },
+            "maxInFlightBatches": {
+              "type": "integer",
+              "description": "TBI: ",
+              "minimum": 1,
+              "default": 8
+            },
+            "staging": {
+              "type": "object",
+              "properties": {
+                "useTempTables": {
+                  "type": "boolean",
+                  "description": "TBI: ",
+                  "default": true
+                },
+                "swapAtomic": {
+                  "type": "boolean",
+                  "description": "TBI: ",
+                  "default": true
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "cdc": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Controls whether continuous migration is run.",
+          "default": false
+        },
+        "startPoint": {
+          "type": "object",
+          "properties": {
+            "strategy": {
+              "type": "string",
+              "description": "TBI: ",
+              "enum": [
+                "now",
+                "clusterTime",
+                "resumeToken"
+              ],
+              "default": "clusterTime"
+            },
+            "clusterTime": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "TBI: ",
+              "format": "date-time"
+            },
+            "resumeToken": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "TBI: "
+            }
+          },
+          "additionalProperties": false
+        },
+        "publish": {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "type": "string",
+              "description": "TBI: ",
+              "enum": [
+                "direct",
+                "kafka"
+              ],
+              "default": "direct"
+            },
+            "kafka": {
+              "type": "object",
+              "properties": {
+                "bootstrapServers": {
+                  "type": "string",
+                  "description": "TBI: "
+                },
+                "sasl": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "description": "TBI: "
+                },
+                "topicPrefix": {
+                  "type": "string",
+                  "description": "TBI: "
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "retry": {
+          "type": "object",
+          "properties": {
+            "maxAttempts": {
+              "type": "integer",
+              "description": "TBI: ",
+              "minimum": 0,
+              "default": 100
+            },
+            "backoffMs": {
+              "type": "integer",
+              "description": "TBI: ",
+              "minimum": 0,
+              "default": 500
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "schemaConversion": {
+      "type": "object",
+      "description": "Rules to convert MongoDB documents into CockroachDB DDL and table layouts.",
+      "additionalProperties": false,
+      "properties": {
+        "defaultStrategy": {
+          "type": "string",
+          "enum": ["columnize", "normalize", "jsonb"],
+          "default": "columnize",
+          "description": "Global strategy for nested objects: 'columnize' flattens fields into columns up to flattenDepth; 'normalize' prefers child tables for nested objects (opt-in via tableOverrides on object paths); 'jsonb' keeps nested content as JSONB columns."
+        },
+        "arrayStrategy": {
+          "type": "string",
+          "enum": ["child_table", "junction_table", "jsonb"],
+          "default": "child_table",
+          "description": "How to handle arrays: 'child_table' = 1:N child table with FK to parent; 'junction_table' = linking table for many-to-many or arrays of references/IDs; 'jsonb' = store array unparsed as JSONB."
+        },
+        "flattenDepth": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 1,
+          "description": "Maximum nesting levels to inline into the base table when defaultStrategy=columnize. 0 = do not inline nested fields; >0 = inline up to this depth; deeper content follows array/map strategies."
+        },
+
+        "objectId": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "derive": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "timestamp": { "type": "boolean", "default": false },
+                "columnName": { "type": "string", "default": "id_ts" }
+              }
+            }
+          }
+        },
+
+        "ignorePaths": {
+          "type": "array",
+          "description": "Paths to leave entirely under the control of the existing target schema. No columns/tables are generated or altered for these paths. Use dotted notation; arrays use [] or [*].",
+          "items": { "type": "string" }
+        },
+
+        "typeMap": {
+          "type": "object",
+          "description": "Global BSON→CRDB type overrides. Keys are logical source types or detectors (e.g., 'ObjectId', 'date', 'decimal', 'string'), values are CRDB types (e.g., 'UUID', 'TIMESTAMPTZ', 'DECIMAL(38,9)', 'STRING'). Path-level columnOverrides take precedence.",
+          "additionalProperties": { "type": "string" }
+        },
+
+        "tableDefaults": {
+          "type": "object",
+          "description": "Defaults for all generated base and child tables unless overridden.",
+          "additionalProperties": false,
+          "properties": {
+            "nameStyle": {
+              "type": "string",
+              "enum": ["snake_case", "camelCase", "kebab-case"],
+              "default": "snake_case",
+              "description": "Style used when deriving table and column names from Mongo paths."
+            },
+            "identifierMaxLen": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 63,
+              "description": "Max length for generated identifiers; names are truncated with stable hashing when exceeded."
+            },
+
+            "id": {
+              "type": "object",
+              "description": "Defaults for synthetic primary keys and preservation of source identifiers.",
+              "additionalProperties": false,
+              "properties": {
+                "idStrategy": {
+                  "type": "string",
+                  "enum": ["use_objectid", "uuid", "rowid", "natural"],
+                  "default": "use_objectid",
+                  "description": "How to form the table PK when no explicit PK is supplied: reuse Mongo _id ('use_objectid'), generate 'UUID', use CRDB 'rowid' (int), or use a 'natural' key from fields."
+                },
+                "preserveSourceId": { "type": "boolean", "default": false, "description": "Keep the original Mongo _id as a separate column. Usually false when idStrategy='use_objectid' to avoid duplication." },
+                "preserveAs": { "type": "string", "default": "legacy_id", "description": "Column name used when preserving the original _id." },
+                "uniqueIndex": { "type": "boolean", "default": true, "description": "Create a UNIQUE index on the preserved source id column." },
+                "applyTo": {
+                  "type": "array",
+                  "items": { "type": "string", "enum": ["base", "child"] },
+                  "default": ["base"],
+                  "description": "Where to apply idStrategy/preservation by default."
+                }
+              }
+            },
+
+            "arrays": {
+              "type": "object",
+              "description": "Defaults that apply when arrayStrategy produces child/junction tables.",
+              "additionalProperties": false,
+              "properties": {
+                "childPkDefault": {
+                  "type": "string",
+                  "enum": ["synthetic", "parent_plus_index"],
+                  "default": "synthetic",
+                  "description": "'synthetic' = generated single-column id per id.idStrategy; 'parent_plus_index' = composite (<parent>_id, arrayIndexColumnName)."
+                },
+                "arrayIndexColumnName": {
+                  "type": "string",
+                  "default": "elem_idx",
+                  "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+                  "description": "Column name for the array position when childPkDefault=parent_plus_index."
+                },
+                "fkOnDelete": {
+                  "type": "string",
+                  "enum": ["NO ACTION", "CASCADE", "SET NULL", "RESTRICT"],
+                  "default": "CASCADE",
+                  "description": "Default ON DELETE action for FKs from child/junction tables to their parent."
+                }
+              }
+            },
+
+            "columnDefaults": {
+              "type": "object",
+              "description": "Default column-level typing when no path-specific override is present.",
+              "additionalProperties": false,
+              "properties": {
+                "maxVarchar": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "default": 1024,
+                  "description": "Default upper bound for STRING columns when a fixed length is chosen; larger strings fall back to unbounded STRING."
+                },
+                "decimalDefault": {
+                  "type": "string",
+                  "pattern": "^DECIMAL\\(\\d+,\\d+\\)$",
+                  "default": "DECIMAL(38,9)",
+                  "description": "Default precision/scale for decimal-like values when a more specific mapping is not inferred."
+                },
+                "timeTzDefault": {
+                  "type": "string",
+                  "enum": ["TIMESTAMPTZ", "TIMESTAMP"],
+                  "default": "TIMESTAMPTZ",
+                  "description": "Default timestamp type when parsing date/time values."
+                }
+              }
+            },
+
+            "primaryKey": {
+              "type": "object",
+              "description": "Optional default PK shape for base tables if not covered by id.idStrategy.",
+              "properties": {
+                "columns": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "Explicit PK columns (in order). If provided, overrides id.idStrategy for base tables."
+                },
+                "descending": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "Subset of PK columns to mark DESCENDING."
+                },
+                "shardedBuckets": {
+                  "type": ["integer", "null"],
+                  "minimum": 2,
+                  "description": "Enable hash-sharded PK with this many buckets (or null for none)."
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+
+        "tableOverrides": {
+          "type": "array",
+          "description": "Overrides that apply to a table produced from a path (base collection or columnized/normalized child).",
+          "items": {
+            "type": "object",
+            "required": ["path"],
+            "additionalProperties": false,
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Dotted Mongo path that becomes/owns this table, e.g., 'orders' (base), 'orders.items[]' (child array), 'orders.shipping' (nested obj). Arrays use [] or [*]."
+              },
+              "action": {
+                "type": "string",
+                "enum": ["apply", "ignore"],
+                "default": "apply",
+                "description": "'ignore' = do not generate/alter this table (assume it exists and is managed externally)."
+              },
+              "targetTable": {
+                "type": "string",
+                "description": "Override for the derived table name if you don't want the inferred name."
+              },
+              "mode": {
+                "type": "string",
+                "enum": ["columnize", "child_table", "junction_table", "jsonb"],
+                "description": "Per-path override for arrays OR objects. For arrays: 'child_table'/'junction_table'/'jsonb'. For nested objects: 'child_table' normalizes the object into a child table; 'jsonb' keeps it as JSONB on the parent."
+              },
+              "pk": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Explicit PK columns for this table (overrides defaults)."
+              },
+              "fk": {
+                "type": "array",
+                "items": {
+                  "description": "Foreign key definition if the default parent FK isn't correct or for junction tables.",
+                  "additionalProperties": false,
+                  "properties": {
+                    "parentTable": { "type": "string", "description": "Referenced table name." },
+                    "parentColumns": {
+                      "type": "array",
+                      "items": { "type": "string" },
+                      "description": "Referenced columns on the parent table."
+                    },
+                    "childColumns": {
+                      "type": "array",
+                      "items": { "type": "string" },
+                      "description": "Local columns forming the FK."
+                    },
+                    "onDelete": {
+                      "type": "string",
+                      "enum": ["NO ACTION", "CASCADE", "SET NULL", "RESTRICT"],
+                      "description": "Override the default ON DELETE action."
+                    },
+                    "reverse": {
+                      "type": "boolean",
+                      "description": "Place the FK on the base table pointing to this normalized table.",
+                      "default": false
+                    },
+                    "reverseSpec": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "childPkPath": { "type": "string", "description": "Field inside the object to use as the child's PK (e.g., 'id')" },
+                        "baseColumnName": { "type": "string", "description": "Name of the FK column to add on the base table (e.g., 'customer_id')" },
+                        "nullable": { "type": "boolean", "default": false },
+                        "onDelete": { "type": "string", "enum": ["NO ACTION","CASCADE","SET NULL","RESTRICT"] }
+                      }
+                    }
+                  }
+                }
+              },
+              "columnFamilies": {
+                "type": "array",
+                "description": "Optional column-family layout for this table.",
+                "items": {
+                  "type": "object",
+                  "required": ["name","columns"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "name": { "type": "string" },
+                    "columns": {
+                      "type": "array",
+                      "items": { "type": "string" },
+                      "minItems": 1
+                    }
+                  }
+                }
+              },
+              "indexDefs": {
+                "type": "array",
+                "description": "Indexes to add on this table.",
+                "items": {
+                  "type": "object",
+                  "required": ["columns"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "name": { "type": "string", "description": "Optional explicit index name; otherwise auto-derived." },
+                    "columns": {
+                      "type": "array",
+                      "items": { "type": "string" },
+                      "description": "Indexed column list in order."
+                    },
+                    "unique": { "type": "boolean", "default": false, "description": "Create as UNIQUE index." },
+                    "type": {
+                      "type": "string",
+                      "enum": ["btree", "inverted", "hash"],
+                      "default": "btree",
+                      "description": "Index method. 'inverted' is typical for JSONB or array containment; 'hash' for hash-sharded secondary idx."
+                    },
+                    "storing": {
+                      "type": "array",
+                      "items": { "type": "string" },
+                      "description": "STORING columns for covering indexes."
+                    },
+                    "where": { "type": "string", "description": "Partial index predicate." },
+                    "hashShardedBuckets": {
+                      "type": "integer",
+                      "minimum": 2,
+                      "description": "Number of buckets for HASH SHARDED indexes."
+                    }
+                  }
+                }
+              },
+              "comment": { "type": "string", "description": "Comment stored on the table." }
+            }
+          }
+        },
+
+        "columnOverrides": {
+          "type": "array",
+          "description": "Overrides for specific scalar columns produced from paths.",
+          "items": {
+            "type": "object",
+            "required": ["path"],
+            "additionalProperties": false,
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Dotted path to a scalar column, e.g., 'orders.total', 'orders.items[].sku'."
+              },
+              "action": {
+                "type": "string",
+                "enum": ["apply", "ignore"],
+                "default": "apply",
+                "description": "'ignore' = do not generate/alter this column (assume it exists as-is)."
+              },
+              "crdbName": {
+                "type": "string",
+                "description": "Override for the derived column name."
+              },
+              "crdbType": {
+                "type": "string",
+                "description": "Explicit CRDB type override for this column (e.g., 'STRING', 'DECIMAL(38,9)', 'JSONB'). Supersedes typeMap."
+              },
+              "nullable": {
+                "type": "boolean",
+                "description": "Force NULL/NOT NULL regardless of inference."
+              },
+              "default": {
+                "type": "string",
+                "description": "DEFAULT expression/value to use when the source value is absent (e.g., '0', 'now()', 'gen_random_uuid()')."
+              },
+              "generated": {
+                "type": "object",
+                "description": "Computed column definition (CRDB 'STORED' computed).",
+                "additionalProperties": false,
+                "properties": {
+                  "expr": { "type": "string", "description": "SQL expression for the computed column." },
+                  "stored": { "type": "boolean", "default": true, "description": "CRDB computed columns are stored; keep true." }
+                }
+              },
+              "comment": { "type": "string", "description": "Comment stored on the column." }
+            }
+          }
+        }
+      }
+    },
+    "collection": {
+      "type": "object",
+      "description": "Per-collection migration settings, describes how to sample, filter, and (optionally) override schema conversion for a specific MongoDB collection.",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Source MongoDB collection name (e.g., 'orders')."
+        },
+
+        "filters": {
+          "type": ["object", "null"],
+          "description": "Optional MongoDB query predicate to scope sampling and migration (pass-through to find()). Null means no filter."
+        },
+
+        "sampling": {
+          "type": "object",
+          "description": "Controls how many documents are used for schema inference and example value capture.",
+          "additionalProperties": false,
+          "properties": {
+            "size": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1000,
+              "description": "Target number of documents to sample for inference."
+            },
+            "strategy": {
+              "type": "string",
+              "enum": ["random", "prefix", "time_window"],
+              "default": "random",
+              "description": "Sampling strategy: 'random' across the collection; 'prefix' reads from the beginning; 'time_window' filters by a timestamp field (see filters)."
+            },
+            "hint": {
+              "type": "string",
+              "description": "Optional index hint string for sampling queries (driver-specific, e.g., '{ field: 1 }' or index name)."
+            }
+          }
+        },
+
+        "fieldTransforms": {
+          "type": "array",
+          "description": "Deterministic, per-path transforms applied during extraction (and thus affecting inference) and/or before write. Useful for coercions, renames, redaction.",
+          "items": {
+            "type": "object",
+            "required": ["path", "op"],
+            "additionalProperties": false,
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Dotted Mongo path to transform (arrays use []), e.g., 'orders.total', 'orders.items[].sku'."
+              },
+              "op": {
+                "type": "string",
+                "enum": [
+                  "rename", "drop", "cast", "coalesce", "default_if_missing",
+                  "trim", "lower", "upper", "substring",
+                  "regex_extract", "concat",
+                  "to_uuid", "to_decimal", "to_timestamp",
+                  "parse_json", "mask"
+                ],
+                "description": "Transform operation to apply. See 'args' for per-op parameters."
+              },
+              "args": {
+                "description": "Operation-specific parameters. Examples: rename:{to}, cast:{type}, coalesce:{values:[...]}, default_if_missing:{value}, substring:{start,length}, regex_extract:{pattern,group}, concat:{paths:[...],sep}, to_decimal:{precision,scale}, to_timestamp:{format,timezone}, mask:{strategy('hash'|'redact'|'null'),salt}."
+              },
+              "phase": {
+                "type": "string",
+                "enum": ["both", "inference_only", "write_only"],
+                "default": "both",
+                "description": "When to apply the transform. 'both' affects inference and writes; 'inference_only' only affects sampling/inference; 'write_only' only affects outgoing rows."
+              }
+            }
+          }
+        },
+
+        "keys": {
+          "type": "object",
+          "description": "Conflict/upsert semantics. DDL keys are controlled by schemaConversion; this section is for business keys used at load/apply time.",
+          "additionalProperties": false,
+          "properties": {
+            "natural": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Ordered list of fields forming the business key (e.g., ['orderNumber','tenantId']). Used for upsert matching when not using the synthetic PK."
+            }
+          }
+        },
+
+        "conflicts": {
+          "type": "object",
+          "description": "How to handle key conflicts during initial load vs. CDC apply.",
+          "additionalProperties": false,
+          "properties": {
+            "onLoad": {
+              "type": "string",
+              "enum": ["fail", "upsert", "ignore"],
+              "default": "upsert",
+              "description": "Behavior during bulk snapshot load: 'fail' on duplicate key; 'upsert' = INSERT ... ON CONFLICT DO UPDATE; 'ignore' = ON CONFLICT DO NOTHING."
+            },
+            "onCdc": {
+              "type": "string",
+              "enum": ["fail", "upsert", "ignore"],
+              "default": "upsert",
+              "description": "Behavior during change-apply: typically 'upsert'. 'fail' is strict; 'ignore' drops conflicting events."
+            }
+          }
+        },
+
+        "schemaConversion": {
+          "$ref": "#/properties/schemaConversion",
+          "description": "Optional per-collection overrides that shallow-merge onto the top-level schemaConversion. Use tableOverrides/columnOverrides with paths that start at this collection (e.g., 'orders.items[]')."
+        }
+      }
+    },
+    "safety": {
+      "type": "object",
+      "properties": {
+        "prechecks": {
+          "type": "array",
+          "description": "TBI: ",
+          "items": {
+            "type": "string"
+          }
+        },
+        "stopIfRowCountMismatchPct": {
+          "type": "number",
+          "description": "TBI: ",
+          "minimum": 0,
+          "maximum": 100,
+          "default": 5.0
+        },
+        "stopOnDdlError": {
+          "type": "boolean",
+          "description": "TBI: ",
+          "default": true
+        },
+        "allowDropOnRegenerate": {
+          "type": "boolean",
+          "description": "TBI: ",
+          "default": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
