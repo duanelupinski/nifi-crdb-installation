@@ -774,7 +774,7 @@ ni::nifi::wait_nodes_api() {
     up=0
     for node in "${NIFI_NODES[@]}"; do
       api="$(ni::api::api_base_for "$node")"
-      if ni::api::curl_nifi "${api}/flow/about" >/dev/null 2>&1; then
+      if ni::api::curl_nifi "${api}/flow/about" >/dev/null; then
         printf '  - %s: API up\n' "$node"
         : $((up+=1))
       else

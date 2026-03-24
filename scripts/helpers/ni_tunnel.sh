@@ -202,8 +202,11 @@ ni::tunnel::prepare_local_access() {
     if [ "${#NIFI_NODES[@]}" -gt 1 ]; then
       aliases+=("${NIFI_NODES[@]:1}")
     fi
-    ni::tunnel::ensure_local_aliases "${aliases[@]}"
+    # removing this from our tunnel deplyment to avoid hostname resolution issues in localhost
+    # ni::tunnel::ensure_local_aliases "${aliases[@]}"
+    export NIFI_TUNNEL_ACTIVE=true
   else
     ni::tunnel::log "Admin UI reachable directly at ${nifi_scheme}://${admin_host}:${nifi_port} — tunnel not required."
+    export NIFI_TUNNEL_ACTIVE=false
   fi
 }
