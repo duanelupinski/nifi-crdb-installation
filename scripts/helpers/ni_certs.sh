@@ -29,6 +29,9 @@ ni::certs::ensure_cluster_tls() {
   declare -A seen=()
   declare -a SAN_ENTRIES=()
   i=1
+  # Always include localhost + loopback for tunneling
+  SAN_ENTRIES+=("DNS.$i = localhost"); seen["localhost"]=1; ((i++))
+  SAN_ENTRIES+=("IP.$i = 127.0.0.1"); ((i++))
   for n in "${nodes[@]}"; do
     if [[ -z "${seen[$n]:-}" ]]; then SAN_ENTRIES+=("DNS.$i = $n"); seen[$n]=1; ((i++)); fi
     short="${n%%.*}"

@@ -12,6 +12,9 @@ command -v apt-get >/dev/null 2>&1 || { echo "Debian/Ubuntu required"; exit 2; }
 DEBIAN_FRONTEND=noninteractive apt-get update -y
 DEBIAN_FRONTEND=noninteractive apt-get install -y "openjdk-${ver}-jdk"
 
+# Force alternatives to use the requested version
+update-alternatives --set java "$(update-alternatives --list java | grep "java-${ver}-openjdk" | head -n1)"
+
 JAVA_BIN="$(readlink -f "$(command -v java)")"
 JAVA_HOME="${JAVA_BIN%/bin/java}"
 

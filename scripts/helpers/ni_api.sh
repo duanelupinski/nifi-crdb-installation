@@ -11,7 +11,7 @@ ni::api::curl_nifi() {
   local KEY="${CERTS_DIR}/_clients/${NIFI_USER}/${NIFI_USER}.key"
   local CA="${CERTS_DIR}/_ca/ca.crt"
   if [[ "${NI_VERBOSE:-0}" == "1" ]]; then
-    echo ">> curl $*" 1>&2
+    echo ">> curl $*"
     curl --path-as-is -v -sS --fail \
       -H 'Accept: application/json' -H 'Content-Type: application/json' -H 'X-Requested-By: nifi-cli' \
       --cert "$CERT" --key "$KEY" --cacert "$CA" "$@"
@@ -24,11 +24,22 @@ ni::api::curl_nifi() {
 
 ni::api::api_base_for() {  # build https://host:9443/nifi-api
   local host="$1"
+
+  # If tunnel is active, always use localhost
+  if [ "${NIFI_TUNNEL_ACTIVE:-false}" = "true" ]; then
+    host="localhost"
+  fi
+
   printf '%s://%s:%s/nifi-api' "$NIFI_SCHEME" "$host" "$NIFI_PORT"
 }
 
 reg::api::api_base_for() {  # build https://host:19443/nifi-registry-api
   local host="$1"
+
+  if [ "${NIFI_TUNNEL_ACTIVE:-false}" = "true" ]; then
+    host="localhost"
+  fi
+
   printf '%s://%s:%s/nifi-registry-api' "$NIFI_SCHEME" "$host" "$REG_PORT"
 }
 
