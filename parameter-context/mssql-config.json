@@ -1,0 +1,60 @@
+{
+  "parameterContexts": [
+    {
+      "component": {
+        "name": "mssql-config",
+        "parameters": [
+          {
+            "parameter": {
+              "name": "database_host",
+              "value": "dlupinski-sandbox-sqlsvr.public.d4ebc4874999.database.windows.net"
+            }
+          },
+          {
+            "parameter": {
+              "name": "database_port",
+              "value": "3342"
+            }
+          },
+          {
+            "parameter": {
+              "name": "database_name",
+              "value": "northwind"
+            }
+          },
+          {
+            "parameter": {
+              "name": "database_user",
+              "value": "duane"
+            }
+          },
+          {
+            "parameter": {
+              "name": "database_password",
+              "value": "M0osisworking!!!",
+              "sensitive": true
+            }
+          },
+          {
+            "parameter": {
+              "name": "database_driver_class_name",
+              "value": "com.microsoft.sqlserver.jdbc.SQLServerDriver"
+            }
+          },
+          {
+            "parameter": {
+              "name": "database_driver_location",
+              "value": "/path/to/mssql-jdbc-<version>.jar"
+            }
+          },
+          {
+            "parameter": {
+              "name": "database_connection_url",
+              "value": "jdbc:sqlserver://;serverName=dlupinski-sandbox-sqlsvr.public.d4ebc4874999.database.windows.net;port=3342;databaseName=northwind"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

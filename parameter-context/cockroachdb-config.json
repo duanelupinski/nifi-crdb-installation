@@ -1,0 +1,60 @@
+{
+  "parameterContexts": [
+    {
+      "component": {
+        "name": "cockroachdb-config",
+        "parameters": [
+          {
+            "parameter": {
+              "name": "database_host",
+              "value": "127.0.0.1"
+            }
+          },
+          {
+            "parameter": {
+              "name": "database_port",
+              "value": "26257"
+            }
+          },
+          {
+            "parameter": {
+              "name": "database_name",
+              "value": "northwind"
+            }
+          },
+          {
+            "parameter": {
+              "name": "database_user",
+              "value": "demo"
+            }
+          },
+          {
+            "parameter": {
+              "name": "database_password",
+              "value": "demodemo",
+              "sensitive": true
+            }
+          },
+          {
+            "parameter": {
+              "name": "database_driver_class_name",
+              "value": "org.postgresql.Driver"
+            }
+          },
+          {
+            "parameter": {
+              "name": "database_driver_location",
+              "value": "/opt/nifi/nifi-current/lib/postgresql-42.7.10.jar"
+            }
+          },
+          {
+            "parameter": {
+              "name": "database_connection_url",
+              "value": "jdbc:postgresql://root@127.0.0.1:26257/northwind?sslmode=disable"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
